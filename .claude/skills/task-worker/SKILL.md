@@ -1,0 +1,30 @@
+---
+name: task-worker
+description: Start working as a swarm worker. Reads tasks.json, finds tasks assigned to this worker, and implements them. Use when inside a worker worktree and the user says "/task-worker", "start working", or "begin tasks".
+disable-model-invocation: false
+user-invocable: true
+---
+
+Start working. Read your tasks from /home/caleb/projects/movie-night-picker-dotnet/.ai/taskswarm/tasks.json, find tasks assigned to you, and begin implementing them. Follow the workflow in your CLAUDE.md. After completing each task, validate before marking complete.
+
+<!-- CUSTOMIZE: Replace with your project's validation commands, e.g.:
+dotnet build
+cargo check && cargo clippy && cargo test
+python -m mypy . && python -m pytest
+-->
+
+## Task Dependencies
+
+Before starting a task, check its `dependsOn` array (if present). Each entry is a task ID (e.g., `"task-001"`). ALL listed dependencies must have `status === "merged"` before you can start the task. If dependencies aren't merged yet, skip to your next task that has no unmet dependencies, or wait and re-check tasks.json.
+
+## Task Parallelism (Don't Wait Idle)
+
+After completing a task and marking it "completed", check if you have another pending task whose `dependsOn` are all merged. If so, compare the `files` arrays of the completed task and the next pending task:
+- **No file overlap** → Start the next task immediately. Don't wait for the reviewer to merge the previous one.
+- **Files overlap** → Wait for the previous task to be merged before starting the next one, to avoid conflicts.
+
+This means you may have multiple tasks in flight — one awaiting review while you work on the next.
+
+## Review Feedback Loop
+
+When you have no remaining pending tasks but some of your tasks are still waiting for review (status "completed" but not yet "merged"), do NOT exit. Poll tasks.json every 30 seconds. If the reviewer sends a task back (status changes to "in_progress" with reviewNotes), read the notes, fix the issues, re-validate, and mark completed again. Only exit once ALL of your tasks are "merged".

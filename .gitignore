@@ -1,0 +1,35 @@
+# ---- .NET ----
+bin/
+obj/
+out/
+publish/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+*.userprefs
+project.lock.json
+artifacts/
+
+# Build/IDE
+.vs/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# Test / coverage
+[Tt]est[Rr]esult*/
+coverage/
+*.coverage
+*.trx
+
+# Secrets / local config (use user-secrets or env for real secrets)
+appsettings.Development.json
+appsettings.Local.json
+*.env
+.env*
+
+# ---- TaskSwarm (from brain project-ai template) ----
+.ai/taskswarm/tasks.json
+.ai/taskswarm/issues.md
