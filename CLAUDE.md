@@ -4,7 +4,7 @@ C#/.NET rewrite of the Movie Night Picker backend as an ASP.NET Core Web API. Pr
 
 ## Status
 
-**Repo shell only — no application code yet.** No `.sln`, no projects. Next step is Phase 0: scaffold the .NET solution (see `.claude-knowledge/todos.md`). Until then, build/test commands below are aspirational.
+**Phase 0 complete — solution scaffolded, build/test/format green.** 5 projects under `src/` + `tests/`, wired into `MovieNightPicker.slnx`. Next: Phase 1+ via the swarm (see `.claude-knowledge/todos.md`). The build/test commands below are live (solution file is `.slnx`, not `.sln`).
 
 ## Target stack
 

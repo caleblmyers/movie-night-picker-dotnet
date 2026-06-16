@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain models + business logic. No project dependencies — this is the center. -->
+
+</Project>

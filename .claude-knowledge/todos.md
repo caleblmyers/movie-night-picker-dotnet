@@ -10,14 +10,16 @@ Prioritized work. Also the input for the swarm planner. **Current state: repo sh
 4. **Phase 3 — suggest flow + shuffle filters** (the LINQ payoff)
 5. **Phase 4 — auth, tests, polish**
 
-## Phase 0 — Scaffold (do first, solo)
+## Phase 0 — Scaffold (DONE ✅, solo)
 
-- [ ] `dotnet new sln -n MovieNightPicker`
-- [ ] Create projects: `MovieNightPicker.Api` (webapi), `.Core`, `.Data`, `.Tmdb`, and `tests/MovieNightPicker.Tests` (xUnit). Add all to the solution.
-- [ ] Enable nullable reference types + treat-warnings sensibly across projects.
-- [ ] `dotnet build` green; commit. Fill in `app-overview.md` Key Files table.
+- [x] Solution created — `MovieNightPicker.slnx` (.NET 10 defaulted to the XML format)
+- [x] Projects created: `.Api` (webapi), `.Core`, `.Data`, `.Tmdb`, `tests/MovieNightPicker.Tests` (xUnit), all added to the solution
+- [x] Nullable + implicit usings + lang `latest` centralized in root `Directory.Build.props`
+- [x] `dotnet build` green (0 warnings), `dotnet test` green, `dotnet format` clean. Key Files table filled in `app-overview.md`.
 
-Once Phase 0 is committed, the swarm can take over Phases 1+ (work sets below have no file overlap).
+**Note:** `dotnet` is installed user-locally at `~/.dotnet` (SDK 10.0.301); PATH is set in `~/.bashrc`. Swarm worktrees inherit this PATH.
+
+Phase 0 is committed — the swarm can now take over Phases 1+ (work sets below have no file overlap).
 
 ## Work Sets (Phase 1+ — swarm)
 

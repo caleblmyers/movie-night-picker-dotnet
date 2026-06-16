@@ -1,0 +1,6 @@
+@MovieNightPicker.Api_HostAddress = http://localhost:5196
+
+GET {{MovieNightPicker.Api_HostAddress}}/health
+Accept: application/json
+
+###

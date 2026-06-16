@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MovieNightPicker.Api/MovieNightPicker.Api.csproj" />
+    <Project Path="src/MovieNightPicker.Core/MovieNightPicker.Core.csproj" />
+    <Project Path="src/MovieNightPicker.Data/MovieNightPicker.Data.csproj" />
+    <Project Path="src/MovieNightPicker.Tmdb/MovieNightPicker.Tmdb.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MovieNightPicker.Tests/MovieNightPicker.Tests.csproj" />
+  </Folder>
+</Solution>

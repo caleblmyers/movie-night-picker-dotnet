@@ -45,16 +45,20 @@ ASP.NET Core JWT bearer auth — mirrors the original's JWT setup. Register/logi
 
 ## Key Files
 
-_TBD — populate at scaffold time once the solution layout is real._
+Scaffolded in Phase 0. Solution file is `MovieNightPicker.slnx` (the .NET 10 XML format, not classic `.sln`). Shared build settings (TFM `net10.0`, nullable, implicit usings, lang `latest`) live in `Directory.Build.props` at the repo root — individual `.csproj` files only carry package/project refs.
 
 | Concern | Files |
 |---|---|
-| Entry point | (TBD — `Program.cs`) |
-| Auth | |
-| Database / EF Core | |
-| API endpoints | |
-| TMDB client | |
-| Suggestion logic | |
+| Entry point | `src/MovieNightPicker.Api/Program.cs` (minimal API; `/health` placeholder) |
+| Auth | _(Phase 4 — `src/MovieNightPicker.Api/`)_ |
+| Database / EF Core | _(Phase 2 — `src/MovieNightPicker.Data/`)_ |
+| API endpoints | _(Phase 1/3 — `src/MovieNightPicker.Api/`)_ |
+| TMDB client | _(Phase 1 — `src/MovieNightPicker.Tmdb/`)_ |
+| Suggestion logic | _(Phase 3 — `src/MovieNightPicker.Core/`)_ |
+| Domain models | `src/MovieNightPicker.Core/` (no project deps — the center) |
+| Tests | `tests/MovieNightPicker.Tests/` (xUnit) |
+
+**Reference graph:** `Core` ← `Data`, `Tmdb`; `Api` → Core/Data/Tmdb; `Tests` → all.
 
 ## Environment Variables
 
