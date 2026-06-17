@@ -1,5 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- EF Core data layer: entities, DbContext, migrations. Persists only
+       user-scoped data (collections, ratings, reviews); movie data lives in TMDB. -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\MovieNightPicker.Core\MovieNightPicker.Core.csproj" />
   </ItemGroup>
