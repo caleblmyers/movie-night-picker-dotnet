@@ -1,0 +1,25 @@
+# Changelog
+
+Wave-by-wave record of what shipped and what we learned. Newest first.
+
+## Wave 1 — 2026-06-17 (Sets 1, 2, 4)
+
+First swarm wave on top of the Phase 0 scaffold. 3 workers + reviewer, 7 tasks, all merged. Build clean (0 warnings), format clean, **65 tests** passing.
+
+**Shipped:**
+- **Set 1 — TMDB typed client** (`MovieNightPicker.Tmdb`): DTO records with `System.Text.Json` snake_case mapping, `TmdbQueryStringBuilder`, `ITmdbClient`/`TmdbClient` typed `HttpClient`, `TmdbApiException`, `AddTmdbClient` DI. (task-001, task-002)
+- **Set 2 — Data layer** (`MovieNightPicker.Data`): all 8 EF Core entities + `MovieNightPickerDbContext` (Fluent config: unique indexes, cascades), `AddData` Npgsql wiring, design-time factory, `InitialCreate` migration. (task-003, task-004)
+- **Set 4 — Core engine** (`MovieNightPicker.Core`): domain models + constant maps + `IMovieDataSource`, shuffle `DiscoverParamsBuilder` + progressive `FallbackChain`, `PreferenceExtractor` + 5-strategy `RecommendationCascade` — all LINQ-first. (task-005, task-006, task-007)
+
+**Key design choice:** Core owns its own `IMovieDataSource` abstraction so Sets 1/2/4 had zero file overlap. The TMDB→Core adapter is intentionally deferred to the API wave (Set 3).
+
+**Deferred to Wave 2:** 10-round suggest flow, collection insights aggregation, TMDB rate-limit/caching.
+
+**Process learnings (from reviewer's issues log):**
+- **EF Core version pinning:** Adding `Microsoft.EntityFrameworkCore.Design` (10.0.9) alongside the Npgsql provider (10.0.2) triggered MSB3277 (provider pins Relational to a different patch). Fix: pin `Microsoft.EntityFrameworkCore.Relational` to 10.0.9 explicitly to unify the stack. Future EF tasks should call out that base + Relational + Design must share one version satisfying the provider's range.
+- **Stacked-task rebase fragility:** worker-3's task-007 branch still carried its task-006 commit (no rebase after task-006 squash-merged). `git merge --squash` netted correctly (identical content in main), but the cherry-pick path in `merge-worker.sh` could have hit an add/add conflict. Future: ensure worker auto-rebase runs after each squash-merge, or prefer `git merge --squash` over cherry-pick when a branch is behind.
+- **Positive:** All 7 tasks stayed within their declared `files` array (zero scope creep). Detailed, self-contained task descriptions + a correct dependency graph (DTOs→client, entities→wiring, models→engine) were the main reasons it worked.
+
+**Open follow-ups:** see `todos.md` → "Follow-ups (from reviewer)".
+
+**Infra fix:** `scripts/taskswarm/spawn.sh` — made the `git update-index --assume-unchanged .claude/settings.json` non-fatal (that file is untracked here), with an `info/exclude` fallback.

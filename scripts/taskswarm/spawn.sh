@@ -101,7 +101,13 @@ setup_worktree() {
   }
 }
 SETTINGS_EOF
-  git -C "$DIR" update-index --assume-unchanged .claude/settings.json
+  # settings.json is untracked (gitignored or never committed) in some repos, so
+  # assume-unchanged can fail — keep it non-fatal and fall back to a local exclude.
+  # In a linked worktree ".git" is a file, so resolve the real exclude path.
+  if ! git -C "$DIR" update-index --assume-unchanged .claude/settings.json 2>/dev/null; then
+    EXCLUDE_FILE="$(git -C "$DIR" rev-parse --git-path info/exclude 2>/dev/null || true)"
+    [ -n "$EXCLUDE_FILE" ] && echo ".claude/settings.json" >> "$EXCLUDE_FILE" 2>/dev/null || true
+  fi
 
   # Write role prompt
   if [ -f "$PROMPT_FILE" ]; then
