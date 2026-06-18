@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using MovieNightPicker.Api.Endpoints;
 using MovieNightPicker.Api.Extensions;
 using MovieNightPicker.Tmdb;
 
@@ -31,6 +32,9 @@ app.UseHttpsRedirection();
 // Liveness probe — replaced by real endpoints as features land (see .claude-knowledge/todos.md).
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("HealthCheck");
+
+app.MapMovieEndpoints();
+app.MapPersonEndpoints();
 
 app.Run();
 
