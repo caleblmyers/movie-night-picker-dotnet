@@ -67,6 +67,11 @@ public class MovieNightPickerDbContext : DbContext
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // RatingValue is documented as a 1-10 scale — enforce it at the DB level so
+            // bad data can't slip past the application. Postgres needs the column quoted.
+            entity.ToTable(t => t.HasCheckConstraint(
+                "CK_Rating_RatingValue_Range", "\"RatingValue\" >= 1 AND \"RatingValue\" <= 10"));
+
             entity.HasIndex(r => new { r.UserId, r.TmdbId }).IsUnique();
             entity.HasIndex(r => r.UserId);
             entity.HasIndex(r => r.TmdbId);
