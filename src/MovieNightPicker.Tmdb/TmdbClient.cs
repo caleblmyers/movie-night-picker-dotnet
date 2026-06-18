@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
@@ -91,22 +92,63 @@ public sealed class TmdbClient : ITmdbClient
         return TmdbQueryStringBuilder.ToQueryString([Kv("language", language), Kv("api_key", _apiKey)]);
     }
 
+    // TMDB enforces a rate limit and answers with 429 + a Retry-After header when hit.
+    // Honor that header (bounded) and retry a few times before giving up.
+    private const int MaxRetries = 3;
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(30);
+
     private async Task<T> SendAsync<T>(string relativeUrl, CancellationToken ct)
     {
-        using var response = await _http.GetAsync(_baseUrl + relativeUrl, ct).ConfigureAwait(false);
-        var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-
-        if (!response.IsSuccessStatusCode)
+        var attempt = 0;
+        while (true)
         {
-            var reason = TryReadStatusMessage(body) ?? response.ReasonPhrase ?? response.StatusCode.ToString();
-            throw new TmdbApiException($"TMDB API error: {(int)response.StatusCode} - {reason}", (int)response.StatusCode);
+            using var response = await _http.GetAsync(_baseUrl + relativeUrl, ct).ConfigureAwait(false);
+
+            if (response.StatusCode == HttpStatusCode.TooManyRequests && attempt < MaxRetries)
+            {
+                attempt++;
+                await Task.Delay(GetRetryDelay(response, attempt), ct).ConfigureAwait(false);
+                continue;
+            }
+
+            var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var reason = TryReadStatusMessage(body) ?? response.ReasonPhrase ?? response.StatusCode.ToString();
+                throw new TmdbApiException($"TMDB API error: {(int)response.StatusCode} - {reason}", (int)response.StatusCode);
+            }
+
+            return JsonSerializer.Deserialize<T>(body, JsonOptions)
+                ?? throw new TmdbApiException(
+                    $"TMDB API error: {(int)response.StatusCode} - empty or unparseable response body",
+                    (int)response.StatusCode);
+        }
+    }
+
+    // Prefer the server's Retry-After (delta seconds or an HTTP date); otherwise fall
+    // back to a simple linear backoff. Always capped so a hostile header can't stall us.
+    private static TimeSpan GetRetryDelay(HttpResponseMessage response, int attempt)
+    {
+        var retryAfter = response.Headers.RetryAfter;
+        if (retryAfter?.Delta is { } delta && delta > TimeSpan.Zero)
+        {
+            return Cap(delta);
         }
 
-        return JsonSerializer.Deserialize<T>(body, JsonOptions)
-            ?? throw new TmdbApiException(
-                $"TMDB API error: {(int)response.StatusCode} - empty or unparseable response body",
-                (int)response.StatusCode);
+        if (retryAfter?.Date is { } date)
+        {
+            var wait = date - DateTimeOffset.UtcNow;
+            if (wait > TimeSpan.Zero)
+            {
+                return Cap(wait);
+            }
+        }
+
+        return TimeSpan.FromSeconds(attempt);
     }
+
+    private static TimeSpan Cap(TimeSpan delay) => delay < MaxRetryDelay ? delay : MaxRetryDelay;
 
     // TMDB error bodies look like {"status_code":7,"status_message":"..."}.
     private static string? TryReadStatusMessage(string body)

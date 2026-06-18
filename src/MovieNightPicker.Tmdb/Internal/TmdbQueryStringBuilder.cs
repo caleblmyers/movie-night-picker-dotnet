@@ -17,12 +17,18 @@ public static class TmdbQueryStringBuilder
     /// Builds the full query string (leading <c>?</c>) for a <c>/discover/movie</c>
     /// call: the discover params, the common request options, then <c>api_key</c>.
     /// </summary>
+    /// <remarks>
+    /// A handful of keys (<c>vote_average.gte</c>, <c>vote_count.gte</c>,
+    /// <c>popularity.gte/lte</c>, <c>with_watch_providers</c>) can be emitted by both
+    /// <see cref="ForDiscover"/> and <see cref="ForOptions"/>. The pairs are de-duplicated
+    /// so each key appears once, with the discover params winning over the request options.
+    /// </remarks>
     public static string BuildDiscoverQuery(DiscoverParams discover, TmdbRequestOptions? options, string apiKey)
     {
         var pairs = ForDiscover(discover)
             .Concat(ForOptions(options ?? new TmdbRequestOptions()))
             .Append(Pair("api_key", apiKey));
-        return ToQueryString(pairs);
+        return ToQueryString(DeduplicateKeys(pairs));
     }
 
     /// <summary>
@@ -107,6 +113,31 @@ public static class TmdbQueryStringBuilder
                 .Select(kv => $"{kv.Key}={Uri.EscapeDataString(kv.Value!)}"));
 
         return query.Length == 0 ? string.Empty : "?" + query;
+    }
+
+    /// <summary>
+    /// Keeps the first non-empty value seen for each key, dropping later duplicates.
+    /// Discover params are concatenated ahead of request options, so a key set on both
+    /// resolves to the discover value. Empty values are skipped here (they would be
+    /// dropped by <see cref="ToQueryString"/> anyway) so an unset discover field never
+    /// suppresses a later non-empty option value for the same key.
+    /// </summary>
+    private static IEnumerable<KeyValuePair<string, string?>> DeduplicateKeys(
+        IEnumerable<KeyValuePair<string, string?>> pairs)
+    {
+        var seen = new HashSet<string>();
+        foreach (var pair in pairs)
+        {
+            if (string.IsNullOrEmpty(pair.Value))
+            {
+                continue;
+            }
+
+            if (seen.Add(pair.Key))
+            {
+                yield return pair;
+            }
+        }
     }
 
     private static KeyValuePair<string, string?> Pair(string key, string? value) => new(key, value);

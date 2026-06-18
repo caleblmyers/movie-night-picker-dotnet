@@ -143,6 +143,60 @@ public class TmdbQueryStringBuilderTests
     }
 
     [Fact]
+    public void BuildDiscoverQuery_DiscoverParamsWinOverOptions_NoDuplicateKeys()
+    {
+        // Both sides set the same overlapping keys; discover should win and each key
+        // must appear exactly once.
+        var query = TmdbQueryStringBuilder.BuildDiscoverQuery(
+            new DiscoverParams
+            {
+                VoteAverageGte = 7.5,
+                VoteCountGte = 500,
+                PopularityRange = (10, 90),
+                WatchProviders = "8",
+            },
+            new TmdbRequestOptions
+            {
+                VoteAverageGte = 1.0,
+                VoteCountGte = 1,
+                PopularityGte = 1,
+                PopularityLte = 5,
+                WithWatchProviders = "337",
+            },
+            apiKey: "k");
+
+        // Raw key occurrences (not the de-duped Parse map) prove no key is emitted twice.
+        var keys = query.TrimStart('?').Split('&').Select(p => p.Split('=')[0]).ToList();
+        foreach (var key in new[] { "vote_average.gte", "vote_count.gte", "popularity.gte", "popularity.lte", "with_watch_providers" })
+        {
+            Assert.Equal(1, keys.Count(k => k == key));
+        }
+
+        var q = Parse(query);
+        Assert.Equal("7.5", q["vote_average.gte"]);
+        Assert.Equal("500", q["vote_count.gte"]);
+        Assert.Equal("10", q["popularity.gte"]);
+        Assert.Equal("90", q["popularity.lte"]);
+        Assert.Equal("8", q["with_watch_providers"]);
+    }
+
+    [Fact]
+    public void BuildDiscoverQuery_UnsetDiscoverKey_FallsBackToOptionValue()
+    {
+        // Discover leaves vote_average.gte unset, so the option's value should be used.
+        var query = TmdbQueryStringBuilder.BuildDiscoverQuery(
+            new DiscoverParams { Genres = [28] },
+            new TmdbRequestOptions { VoteAverageGte = 6.5 },
+            apiKey: "k");
+
+        var keys = query.TrimStart('?').Split('&').Select(p => p.Split('=')[0]).ToList();
+        Assert.Equal(1, keys.Count(k => k == "vote_average.gte"));
+
+        var q = Parse(query);
+        Assert.Equal("6.5", q["vote_average.gte"]);
+    }
+
+    [Fact]
     public void ToQueryString_EscapesValues()
     {
         var pairs = new[] { new KeyValuePair<string, string?>("query", "the dark knight & robin") };
