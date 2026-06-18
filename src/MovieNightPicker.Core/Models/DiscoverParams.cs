@@ -81,6 +81,21 @@ public sealed record DiscoverParams
 
         hash.Add(RuntimeRange);
         hash.Add(WatchProviders);
+        foreach (var g in ExcludeGenres)
+        {
+            hash.Add(g);
+        }
+
+        foreach (var c in ExcludeCast)
+        {
+            hash.Add(c);
+        }
+
+        foreach (var c in ExcludeCrew)
+        {
+            hash.Add(c);
+        }
+
         hash.Add(PopularityRange);
         foreach (var country in OriginCountries)
         {
