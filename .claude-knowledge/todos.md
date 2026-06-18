@@ -28,7 +28,7 @@ Phase 0 is committed — the swarm can now take over Phases 1+ (work sets below 
 - [x] Typed `HttpClient` wrapper over TMDB (search, discover, movie/person detail, credits) — task-002
 - [x] DTOs + `System.Text.Json` mapping + `TmdbQueryStringBuilder` — task-001
 - [x] Error handling (`TmdbApiException`) — task-002
-- [ ] Rate-limit awareness / caching (deferred — see original's TTL cache + request dedup)
+- [x] Rate-limit awareness + in-memory TTL caching + request dedup (`CachingTmdbClient`) — Wave 2, task-005
 
 ### Set 2: Data layer (`MovieNightPicker.Data`) — ✅ DONE (Wave 1, 2026-06-17)
 **Files:** `src/MovieNightPicker.Data/**`
@@ -36,20 +36,22 @@ Phase 0 is committed — the swarm can now take over Phases 1+ (work sets below 
 - [x] Initial migration (`InitialCreate`) — task-004
 - [x] Npgsql / PostgreSQL wiring + design-time factory (`AddData(connectionString)`) — task-004
 
-### Set 3: API surface (`MovieNightPicker.Api`) — ⏭️ NEXT WAVE
+### Set 3: API surface (`MovieNightPicker.Api`) — 🟡 PARTIAL (Wave 2)
 **Files:** `src/MovieNightPicker.Api/**`
-- [ ] Program.cs: DI, config, middleware, register typed TMDB client + DbContext
-- [ ] **TMDB→Core adapter**: implement `IMovieDataSource` over `ITmdbClient` (this is the integration seam Wave 1 deliberately left open)
-- [ ] Read endpoints: search, discover/shuffle, movie/person detail
-- [ ] JWT auth + user-scoped endpoints (collections, ratings, reviews)
+- [x] Program.cs: DI, config, middleware (`AddAppServices`), ProblemDetails error handling — Wave 2, task-003
+- [x] **TMDB→Core adapter**: `TmdbMovieDataSource : IMovieDataSource` over `ITmdbClient` — Wave 2, task-003
+- [x] Read endpoints: search, discover/shuffle, movie/person detail, `POST /movies/suggest` — Wave 2, task-004
+- [ ] JWT auth + user-scoped endpoints (collections, ratings, reviews) — ⏭️ Wave 3
+- [ ] `GET /suggest/round/{n}` (10-round flow) + `GET /collections/{id}/insights` endpoints — ⏭️ Wave 3 (Core logic exists, no HTTP surface yet)
 
-### Set 4: Suggestion engine (`MovieNightPicker.Core`) — 🟡 PARTIAL (Wave 1)
+### Set 4: Suggestion engine (`MovieNightPicker.Core`) — ✅ DONE (Waves 1–2)
 **Files:** `src/MovieNightPicker.Core/**`
-- [x] Domain models + constants + `IMovieDataSource` abstraction — task-005
-- [x] 5-strategy recommendation cascade + preference extraction (LINQ) — task-007
-- [x] 15+ shuffle filters + progressive fallback chain (LINQ) — task-006
-- [ ] **10-round suggest flow** (deferred to Wave 2)
-- [ ] **Collection insights aggregation** (deferred to Wave 2)
+- [x] Domain models + constants + `IMovieDataSource` abstraction — W1 task-005
+- [x] 5-strategy recommendation cascade + preference extraction (LINQ) — W1 task-007
+- [x] 15+ shuffle filters + progressive fallback chain (LINQ) — W1 task-006
+- [x] 10-round suggest flow (`SuggestFlow` + `SuggestRoundGenerator`) — W2 task-001
+- [x] Collection insights aggregation (`CollectionInsights`) — W2 task-002
+- ℹ️ Both 10-round flow and insights need HTTP endpoints (see Set 3, Wave 3)
 
 ## Parallelism Matrix
 

@@ -50,14 +50,14 @@ Scaffolded in Phase 0. Solution file is `MovieNightPicker.slnx` (the .NET 10 XML
 | Concern | Files |
 |---|---|
 | Entry point | `src/MovieNightPicker.Api/Program.cs` (minimal API; `/health` placeholder) |
-| Auth | _(Wave 4 — `src/MovieNightPicker.Api/`)_ |
-| Database / EF Core | `src/MovieNightPicker.Data/` — `MovieNightPickerDbContext`, `Entities/` (8 models), `Migrations/InitialCreate`, `AddData()` wiring ✅ Wave 1 |
-| API endpoints | _(Wave 2/3 — `src/MovieNightPicker.Api/`)_ |
-| TMDB client | `src/MovieNightPicker.Tmdb/` — `ITmdbClient`/`TmdbClient`, `Dtos/`, `TmdbQueryStringBuilder`, `AddTmdbClient()` ✅ Wave 1 |
-| Suggestion logic | `src/MovieNightPicker.Core/Suggestions/` (`RecommendationCascade`, `PreferenceExtractor`) + `Discovery/` (`DiscoverParamsBuilder`, `FallbackChain`) ✅ Wave 1 |
-| Movie-data abstraction | `src/MovieNightPicker.Core/IMovieDataSource.cs` — Core's own port; **API wave adapts `ITmdbClient` to it** |
+| Auth | _(Wave 3 — `src/MovieNightPicker.Api/`)_ |
+| Database / EF Core | `src/MovieNightPicker.Data/` — `MovieNightPickerDbContext`, `Entities/` (8 models), `Migrations/` (`InitialCreate` + `AddRatingValueCheckConstraint`), `AddData()` ✅ W1–2 |
+| API endpoints | `src/MovieNightPicker.Api/Endpoints/` — `MovieEndpoints` (search/discover/detail/suggest), `PersonEndpoints`; `Program.cs` + `Extensions/`, `Adapters/`, `Contracts/` ✅ Wave 2 |
+| TMDB client | `src/MovieNightPicker.Tmdb/` — `ITmdbClient`/`TmdbClient` + `Caching/CachingTmdbClient` (TTL cache, dedup, 429 backoff), `Dtos/`, `AddTmdbClient()` ✅ W1–2 |
+| Suggestion logic | `src/MovieNightPicker.Core/Suggestions/` (`RecommendationCascade`, `PreferenceExtractor`, `SuggestFlow`, `SuggestRoundGenerator`) + `Discovery/` + `Insights/CollectionInsights` ✅ W1–2 |
+| Movie-data abstraction | `src/MovieNightPicker.Core/IMovieDataSource.cs` — Core's own port; `Api/Adapters/TmdbMovieDataSource` adapts `ITmdbClient` to it ✅ Wave 2 |
 | Domain models | `src/MovieNightPicker.Core/Models/` + `Constants/` (genre/mood/era maps, quality floors) |
-| Tests | `tests/MovieNightPicker.Tests/` (xUnit, 65 tests; per-set subfolders `Tmdb/`, `Core/`) |
+| Tests | `tests/MovieNightPicker.Tests/` (xUnit, 135 tests; subfolders `Tmdb/`, `Core/`, `Api/`, `Data/`) |
 
 **Reference graph:** `Core` ← `Data`, `Tmdb`; `Api` → Core/Data/Tmdb; `Tests` → all.
 

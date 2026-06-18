@@ -2,6 +2,21 @@
 
 Wave-by-wave record of what shipped and what we learned. Newest first.
 
+## Wave 2 — 2026-06-18 (API surface + Core leftovers + follow-ups)
+
+The integrator wave. 3 workers + reviewer, 6 tasks, all merged. Build clean (0 warnings), format clean, **135 tests** (up from 65). `/health` smoke test passes with empty config.
+
+**Shipped:**
+- **API surface** (`MovieNightPicker.Api`): `TmdbMovieDataSource` adapter (`IMovieDataSource` over `ITmdbClient`), `AddAppServices` DI wiring, `GlobalExceptionHandler`→ProblemDetails (TmdbApiException→502), and read + suggest endpoints (`/movies/search`, `/movies/discover` shuffle, `/movies/{id}`, `/people/*`, `POST /movies/suggest`). `POST /movies/suggest` enriches picks via TMDB credits/keywords → full `PreferenceExtractor` profile. (task-003, task-004)
+- **Core leftovers** (`MovieNightPicker.Core`): 10-round suggest flow (`SuggestFlow` + `SuggestRoundGenerator`, per-slot fetch/fallback, round-10 anchor inference) and `CollectionInsights.Compute`. (task-001, task-002)
+- **Follow-ups** (`Tmdb`/`Data`): `CachingTmdbClient` decorator (TTL cache + in-flight dedup + 429 Retry-After backoff), query-key precedence fix (discover wins), and the `Rating` 1–10 check constraint + migration. (task-005, task-006)
+
+**Resolved Wave-1 follow-ups:** DiscoverParams.GetHashCode excludes; query-key dedup; Rating check constraint; enriched-preferences wiring in the suggest endpoint.
+
+**Design note:** Again three conflict-free directories (Core / Api / Tmdb+Data) despite this being the integrator wave — possible because the Wave-1 `IMovieDataSource` interface was stable, so the adapter implemented it without interface churn. JWT auth + user-scoped endpoints deferred to Wave 3.
+
+**New follow-ups (in todos.md → Wave 2 follow-ups):** expose `SuggestFlow` and `CollectionInsights` via HTTP (Wave 3); a captive-dependency note on the singleton caching decorator (harmless for single-user); consider parallelizing per-pick enrichment in the suggest endpoint.
+
 ## Wave 1 — 2026-06-17 (Sets 1, 2, 4)
 
 First swarm wave on top of the Phase 0 scaffold. 3 workers + reviewer, 7 tasks, all merged. Build clean (0 warnings), format clean, **65 tests** passing.
