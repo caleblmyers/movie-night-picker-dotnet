@@ -1,12 +1,26 @@
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using MovieNightPicker.Api.Extensions;
+using MovieNightPicker.Tmdb;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// TMDB client, data layer, and the Core-facing adapter.
+builder.Services.AddAppServices(builder.Configuration);
+
+// RFC7807 problem-details responses for unhandled exceptions.
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -19,3 +33,37 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("HealthCheck");
 
 app.Run();
+
+/// <summary>
+/// Translates unhandled exceptions into RFC7807 ProblemDetails responses:
+/// a <see cref="TmdbApiException"/> becomes a 502 Bad Gateway (the upstream
+/// movie service failed), everything else a generic 500.
+/// </summary>
+internal sealed class GlobalExceptionHandler : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(
+        HttpContext context, Exception exception, CancellationToken cancellationToken)
+    {
+        var problem = exception switch
+        {
+            TmdbApiException tmdb => new ProblemDetails
+            {
+                Status = StatusCodes.Status502BadGateway,
+                Title = "Upstream movie service error",
+                Detail = tmdb.Message,
+            },
+            _ => new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "An unexpected error occurred",
+            },
+        };
+
+        context.Response.StatusCode = problem.Status!.Value;
+        await context.Response.WriteAsJsonAsync(problem, cancellationToken);
+        return true;
+    }
+}
+
+/// <summary>Exposed so <c>WebApplicationFactory&lt;Program&gt;</c> can host the app in tests.</summary>
+public partial class Program;
