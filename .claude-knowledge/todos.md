@@ -72,7 +72,12 @@ Phase 0 is committed — the swarm can now take over Phases 1+ (work sets below 
 - [ ] Captive dependency (task-005): `AddTmdbClient` now registers `CachingTmdbClient` as a **singleton** that captures the transient typed `TmdbClient` (and thus one pooled `HttpClient`) for the app lifetime, defeating `HttpClientFactory` handler rotation (DNS/socket refresh). Harmless for this single-user app; if it ever runs long-lived against changing infra, consider making the decorator resolve the inner client per-call or use `IHttpClientFactory` directly. The decorator itself must stay singleton (shared cache + in-flight dedup dictionary).
 
 ### Set 2: Data layer
-- [ ] `Rating.RatingValue` is documented as 1-10 but has no DB-level check constraint (task-003). Add a `HasCheckConstraint`/range validation (in the API DTO validators) when wiring the ratings endpoint so out-of-range values can't be persisted.
+- [x] `Rating.RatingValue` is documented as 1-10 but has no DB-level check constraint (task-003). — ✅ RESOLVED (task-006: CK_Rating_RatingValue_Range constraint + migration). Still worth adding API DTO validation when wiring the ratings endpoint for a friendlier 400 than a DB constraint violation.
 
 ### Set 4: Suggestion engine (cont.)
-- [ ] `PreferenceExtractor.Extract(IReadOnlyList<Movie>)` can only derive genres + year range; keywords/actors/crew need TMDB credit/keyword data (task-007 added a `SelectedMovie` enriched overload + TODO). When wiring the suggest endpoint, build `SelectedMovie`s from TMDB credits/keywords so the full preference profile is used.
+- [x] `PreferenceExtractor.Extract(IReadOnlyList<Movie>)` can only derive genres + year range; keywords/actors/crew need TMDB credit/keyword data (task-007 added a `SelectedMovie` enriched overload + TODO). When wiring the suggest endpoint, build `SelectedMovie`s from TMDB credits/keywords so the full preference profile is used. — ✅ RESOLVED (task-004: POST /movies/suggest enriches picks via TMDB credits + keywords).
+
+### Wave 2 follow-ups (from reviewer)
+- [ ] `SuggestFlow.GetRoundAsync` (task-001) is implemented in Core but not yet exposed via an HTTP endpoint — no `GET/POST /suggest/round/{n}` surface wires it up. Add an endpoint that drives the 10-round flow (tracking selected ids per session) when building out the suggest UX.
+- [ ] `CollectionInsights.Compute` (task-002) is pure Core with no HTTP surface yet. Add a `GET /collections/{id}/insights` (or equivalent) endpoint that builds `InsightsMovie`s from TMDB credits/keywords once the collections feature exists.
+- [ ] The suggest endpoint (task-004) makes 3 sequential TMDB calls per selected id (GetMovie + GetMovieCredits + GetMovieKeywords). With caching (task-005) this is tolerable, but consider parallelizing per-id enrichment (`Task.WhenAll`) if pick counts grow.
