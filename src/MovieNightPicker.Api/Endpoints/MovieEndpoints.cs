@@ -95,24 +95,13 @@ public static class MovieEndpoints
             return Results.BadRequest(new { error = "selectedMovieIds is required" });
         }
 
-        var enriched = new List<PreferenceExtractor.SelectedMovie>();
-        foreach (var id in ids)
-        {
-            var movie = await source.GetMovieAsync(id, ct);
-            if (movie is null)
-            {
-                continue; // skip picks TMDB no longer knows about
-            }
-
-            var credits = await client.GetMovieCreditsAsync(id, ct: ct);
-            var keywords = await source.GetMovieKeywordsAsync(id, ct);
-
-            enriched.Add(new PreferenceExtractor.SelectedMovie(
-                movie,
-                keywords,
-                credits.Cast.Select(c => c.Id).ToList(),
-                credits.Crew.Select(c => new PreferenceExtractor.CrewMember(c.Id, c.Job ?? string.Empty)).ToList()));
-        }
+        // Enrich every pick concurrently (one task per id); Task.WhenAll preserves
+        // input order, so filtering the skipped (null) picks keeps the original
+        // ordering and downstream PreferenceExtractor/cascade behaviour.
+        var enriched = (await Task.WhenAll(ids.Select(id => EnrichAsync(id, source, client, ct))))
+            .Where(e => e is not null)
+            .Select(e => e!)
+            .ToList();
 
         if (enriched.Count == 0)
         {
@@ -126,6 +115,32 @@ public static class MovieEndpoints
         return suggestion is null
             ? Results.NotFound()
             : Results.Ok(MovieResponse.FromCore(suggestion));
+    }
+
+    /// <summary>
+    /// Enrich a single pick: resolve the movie (skip — null — if TMDB no longer
+    /// knows it), then fetch its credits and keywords concurrently.
+    /// </summary>
+    private static async Task<PreferenceExtractor.SelectedMovie?> EnrichAsync(
+        int id, IMovieDataSource source, ITmdbClient client, CancellationToken ct)
+    {
+        var movie = await source.GetMovieAsync(id, ct);
+        if (movie is null)
+        {
+            return null; // skip picks TMDB no longer knows about
+        }
+
+        var creditsTask = client.GetMovieCreditsAsync(id, ct: ct);
+        var keywordsTask = source.GetMovieKeywordsAsync(id, ct);
+        await Task.WhenAll(creditsTask, keywordsTask);
+        var credits = await creditsTask;
+        var keywords = await keywordsTask;
+
+        return new PreferenceExtractor.SelectedMovie(
+            movie,
+            keywords,
+            credits.Cast.Select(c => c.Id).ToList(),
+            credits.Crew.Select(c => new PreferenceExtractor.CrewMember(c.Id, c.Job ?? string.Empty)).ToList());
     }
 
     /// <summary>
