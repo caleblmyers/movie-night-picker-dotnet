@@ -1,0 +1,56 @@
+@* Reusable 1-10 star rating. As an input, raises ValueChanged on click; as a
+   ReadOnly display, just renders the filled/empty stars. *@
+
+<span class="rating-stars" role="@(ReadOnly ? "img" : "radiogroup")"
+      aria-label="@(Value is { } v ? $"Rated {v} of 10" : "Not rated")">
+    @for (var star = 1; star <= 10; star++)
+    {
+        var index = star;
+        var filled = Value is { } current && index <= current;
+        @if (ReadOnly)
+        {
+            <span class="star @(filled ? "filled" : "")" aria-hidden="true">@(filled ? "★" : "☆")</span>
+        }
+        else
+        {
+            <button type="button" class="btn btn-link p-0 star @(filled ? "filled" : "")"
+                    title="@index" aria-label="@($"Rate {index}")" @onclick="() => SelectAsync(index)">
+                @(filled ? "★" : "☆")
+            </button>
+        }
+    }
+</span>
+
+<style>
+    .rating-stars .star {
+        font-size: 1.25rem;
+        line-height: 1;
+        color: #ffc107;
+        text-decoration: none;
+        vertical-align: middle;
+    }
+
+    .rating-stars button.star:hover {
+        opacity: 0.7;
+    }
+</style>
+
+@code {
+    /// <summary>The current rating (1-10), or null when unrated.</summary>
+    [Parameter]
+    public int? Value { get; set; }
+
+    /// <summary>Raised with the newly-selected rating when a star is clicked.</summary>
+    [Parameter]
+    public EventCallback<int> ValueChanged { get; set; }
+
+    /// <summary>When true, render as a static display instead of a clickable input.</summary>
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    private async Task SelectAsync(int value)
+    {
+        Value = value;
+        await ValueChanged.InvokeAsync(value);
+    }
+}

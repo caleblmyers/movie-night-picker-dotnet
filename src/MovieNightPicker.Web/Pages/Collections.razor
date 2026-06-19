@@ -1,0 +1,117 @@
+@page "/collections"
+@attribute [Authorize]
+@using MovieNightPicker.Web.Services
+@inject HttpClient Http
+
+<PageTitle>My Collections</PageTitle>
+
+<h1>My Collections</h1>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">New collection</h5>
+        <EditForm Model="@form" OnValidSubmit="@CreateAsync" class="row g-2 align-items-end">
+            <DataAnnotationsValidator />
+            <div class="col-md-4">
+                <label class="form-label">Name</label>
+                <InputText @bind-Value="form.Name" class="form-control" placeholder="Friday horror night" />
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Description <span class="text-muted">(optional)</span></label>
+                <InputText @bind-Value="form.Description" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100" disabled="@creating">
+                    @(creating ? "Creating…" : "Create")
+                </button>
+            </div>
+            <ValidationMessage For="@(() => form.Name)" class="text-danger" />
+        </EditForm>
+    </div>
+</div>
+
+@if (loading)
+{
+    <p><em>Loading your collections…</em></p>
+}
+else if (collections.Count == 0)
+{
+    <div class="alert alert-info" role="alert">
+        You don't have any collections yet. Create one above to start grouping movies.
+    </div>
+}
+else
+{
+    <div class="list-group">
+        @foreach (var collection in collections)
+        {
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="@($"/collections/{collection.Id}")" class="h5 mb-1 d-inline-block">@collection.Name</a>
+                    @if (!string.IsNullOrWhiteSpace(collection.Description))
+                    {
+                        <p class="mb-1 text-muted">@collection.Description</p>
+                    }
+                    <small class="text-muted">@collection.Movies.Count movie@(collection.Movies.Count == 1 ? "" : "s")</small>
+                </div>
+                <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteAsync(collection.Id)">
+                    Delete
+                </button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private CollectionApiClient client = default!;
+    private IReadOnlyList<CollectionResponse> collections = Array.Empty<CollectionResponse>();
+    private readonly CreateForm form = new();
+    private bool loading = true;
+    private bool creating;
+
+    protected override async Task OnInitializedAsync()
+    {
+        client = new CollectionApiClient(Http);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        collections = await client.ListAsync();
+        loading = false;
+    }
+
+    private async Task CreateAsync()
+    {
+        creating = true;
+        var created = await client.CreateAsync(form.Name.Trim(), Blank(form.Description));
+        creating = false;
+
+        if (created is not null)
+        {
+            form.Name = "";
+            form.Description = "";
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        if (await client.DeleteAsync(id))
+        {
+            await LoadAsync();
+        }
+    }
+
+    private static string? Blank(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private sealed class CreateForm
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Name is required.")]
+        public string Name { get; set; } = "";
+
+        public string? Description { get; set; }
+    }
+}

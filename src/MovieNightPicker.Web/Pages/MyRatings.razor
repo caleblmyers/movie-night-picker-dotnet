@@ -1,0 +1,152 @@
+@page "/my-ratings"
+@attribute [Authorize]
+@using MovieNightPicker.Web.Services
+@inject HttpClient Http
+
+<PageTitle>My Ratings &amp; Reviews</PageTitle>
+
+<h1>My Ratings &amp; Reviews</h1>
+
+@if (loading)
+{
+    <p><em>Loading…</em></p>
+}
+else
+{
+    <h2 class="h4 mt-4">Ratings</h2>
+    @if (ratings.Count == 0)
+    {
+        <div class="alert alert-info" role="alert">
+            You haven't rated any movies yet. Rate one from its detail page.
+        </div>
+    }
+    else
+    {
+        <table class="table align-middle">
+            <thead>
+                <tr><th>Movie</th><th>Rating</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var rating in ratings)
+                {
+                    <tr>
+                        <td><a href="@($"/movies/{rating.TmdbId}")">Movie #@rating.TmdbId</a></td>
+                        <td>
+                            <RatingStars Value="rating.Value"
+                                         ValueChanged="value => UpdateRatingAsync(rating.TmdbId, value)" />
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-outline-danger btn-sm"
+                                    @onclick="() => DeleteRatingAsync(rating.TmdbId)">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2 class="h4 mt-5">Reviews</h2>
+    @if (reviews.Count == 0)
+    {
+        <div class="alert alert-info" role="alert">
+            You haven't written any reviews yet.
+        </div>
+    }
+    else
+    {
+        @foreach (var review in reviews)
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <a href="@($"/movies/{review.TmdbId}")">Movie #@review.TmdbId</a>
+                    </h5>
+                    <textarea class="form-control mb-2" rows="3" value="@DraftFor(review.TmdbId)"
+                              @oninput="e => SetDraft(review.TmdbId, e.Value?.ToString())"></textarea>
+                    <button class="btn btn-primary btn-sm"
+                            @onclick="() => SaveReviewAsync(review.TmdbId)">
+                        Save
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm"
+                            @onclick="() => DeleteReviewAsync(review.TmdbId)">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        }
+    }
+}
+
+@code {
+    private RatingReviewApiClient client = default!;
+    private IReadOnlyList<RatingResponse> ratings = Array.Empty<RatingResponse>();
+    private IReadOnlyList<ReviewResponse> reviews = Array.Empty<ReviewResponse>();
+    private readonly Dictionary<int, string> reviewDrafts = new();
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        client = new RatingReviewApiClient(Http);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        ratings = await client.ListRatingsAsync();
+        reviews = await client.ListReviewsAsync();
+        reviewDrafts.Clear();
+        foreach (var review in reviews)
+        {
+            reviewDrafts[review.TmdbId] = review.Content;
+        }
+
+        loading = false;
+    }
+
+    private async Task UpdateRatingAsync(int tmdbId, int value)
+    {
+        if (await client.UpsertRatingAsync(tmdbId, value) is not null)
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteRatingAsync(int tmdbId)
+    {
+        if (await client.DeleteRatingAsync(tmdbId))
+        {
+            await LoadAsync();
+        }
+    }
+
+    private string DraftFor(int tmdbId) =>
+        reviewDrafts.TryGetValue(tmdbId, out var draft) ? draft : "";
+
+    private void SetDraft(int tmdbId, string? value) =>
+        reviewDrafts[tmdbId] = value ?? "";
+
+    private async Task SaveReviewAsync(int tmdbId)
+    {
+        var content = DraftFor(tmdbId).Trim();
+        if (content.Length == 0)
+        {
+            return;
+        }
+
+        if (await client.UpsertReviewAsync(tmdbId, content) is not null)
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteReviewAsync(int tmdbId)
+    {
+        if (await client.DeleteReviewAsync(tmdbId))
+        {
+            await LoadAsync();
+        }
+    }
+}

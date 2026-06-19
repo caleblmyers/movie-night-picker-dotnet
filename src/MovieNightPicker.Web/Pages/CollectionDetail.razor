@@ -1,0 +1,206 @@
+@page "/collections/{Id:int}"
+@attribute [Authorize]
+@using System.Net
+@using MovieNightPicker.Web.Services
+@inject HttpClient Http
+
+<PageTitle>@(collection?.Name ?? "Collection")</PageTitle>
+
+@if (loading)
+{
+    <p><em>Loading collection…</em></p>
+}
+else if (collection is null)
+{
+    <div class="alert alert-warning" role="alert">
+        Collection not found, or it isn't yours.
+        <a href="/collections">Back to your collections</a>.
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h1 class="mb-1">@collection.Name</h1>
+            @if (!string.IsNullOrWhiteSpace(collection.Description))
+            {
+                <p class="text-muted">@collection.Description</p>
+            }
+        </div>
+        <a href="/collections" class="btn btn-outline-secondary btn-sm">All collections</a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <h2 class="h5">Movies</h2>
+            @if (movies.Count == 0)
+            {
+                <div class="alert alert-info" role="alert">
+                    This collection is empty. Add movies from a movie's detail page.
+                </div>
+            }
+            else
+            {
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">
+                    @foreach (var movie in movies)
+                    {
+                        <div class="col">
+                            <MovieCard Movie="movie">
+                                <Actions Context="m">
+                                    <button class="btn btn-outline-danger btn-sm"
+                                            @onclick="() => RemoveAsync(m.Id)" disabled="@removing">
+                                        Remove
+                                    </button>
+                                </Actions>
+                            </MovieCard>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="col-lg-4">
+            <h2 class="h5">Insights</h2>
+            @if (insights is null)
+            {
+                <p class="text-muted"><em>No insights available yet.</em></p>
+            }
+            else
+            {
+                <div class="card">
+                    <div class="card-body">
+                        <p class="mb-2">
+                            <strong>@insights.TotalMovies</strong> movie@(insights.TotalMovies == 1 ? "" : "s")
+                            @if (insights.YearRange is { } yr)
+                            {
+                                <span>· @yr.Min–@yr.Max</span>
+                            }
+                        </p>
+                        <dl class="row mb-0 small">
+                            @if (insights.AverageVoteAverage is { } avgVote)
+                            {
+                                <dt class="col-7">Average rating</dt>
+                                <dd class="col-5 text-end">★ @avgVote.ToString("0.0")</dd>
+                            }
+                            @if (insights.AverageRuntime is { } avgRuntime)
+                            {
+                                <dt class="col-7">Average runtime</dt>
+                                <dd class="col-5 text-end">@avgRuntime.ToString("0") min</dd>
+                            }
+                        </dl>
+
+                        @if (insights.MoviesByGenre.Count > 0)
+                        {
+                            <h3 class="h6 mt-3">Top genres</h3>
+                            <ul class="list-unstyled mb-0 small">
+                                @foreach (var g in insights.MoviesByGenre.Take(5))
+                                {
+                                    <li class="d-flex justify-content-between">
+                                        <span>@g.GenreName</span><span class="text-muted">@g.Count</span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+
+                        @if (insights.TopActors.Count > 0)
+                        {
+                            <h3 class="h6 mt-3">Top actors</h3>
+                            <ul class="list-unstyled mb-0 small">
+                                @foreach (var a in insights.TopActors.Take(5))
+                                {
+                                    <li class="d-flex justify-content-between">
+                                        <span>@a.Name</span><span class="text-muted">@a.Count</span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+
+                        @if (insights.TopKeywords.Count > 0)
+                        {
+                            <h3 class="h6 mt-3">Top keywords</h3>
+                            <div>
+                                @foreach (var k in insights.TopKeywords.Take(8))
+                                {
+                                    <span class="badge bg-secondary me-1 mb-1">@k.Name</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private CollectionApiClient client = default!;
+    private CollectionResponse? collection;
+    private CollectionInsightsResult? insights;
+    private List<MovieSummary> movies = new();
+    private bool loading = true;
+    private bool removing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        client = new CollectionApiClient(Http);
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        collection = await client.GetAsync(Id);
+
+        if (collection is not null)
+        {
+            insights = await client.GetInsightsAsync(Id);
+            await LoadMoviesAsync();
+        }
+
+        loading = false;
+    }
+
+    private async Task LoadMoviesAsync()
+    {
+        var loaded = new List<MovieSummary>();
+        foreach (var entry in collection!.Movies)
+        {
+            var movie = await GetMovieAsync(entry.TmdbId);
+            if (movie is not null)
+            {
+                loaded.Add(movie);
+            }
+        }
+
+        movies = loaded;
+    }
+
+    private async Task<MovieSummary?> GetMovieAsync(int tmdbId)
+    {
+        var response = await Http.GetAsync($"/movies/{tmdbId}");
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<MovieSummary>();
+    }
+
+    private async Task RemoveAsync(int tmdbId)
+    {
+        removing = true;
+        var updated = await client.RemoveMovieAsync(Id, tmdbId);
+        removing = false;
+
+        if (updated is not null)
+        {
+            collection = updated;
+            insights = await client.GetInsightsAsync(Id);
+            await LoadMoviesAsync();
+        }
+    }
+}
