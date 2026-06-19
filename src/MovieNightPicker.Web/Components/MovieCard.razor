@@ -1,0 +1,37 @@
+@using MovieNightPicker.Web.Models
+
+@* Shared poster card for a movie. Links to the detail page; optionally renders an
+   action button (e.g. "add to collection", "pick") supplied by the parent. *@
+
+<div class="card h-100">
+    @if (Movie.PosterUrl is not null)
+    {
+        <img src="@Movie.PosterUrl" class="card-img-top" alt="@Movie.Title poster" loading="lazy" />
+    }
+    <div class="card-body">
+        <h5 class="card-title">
+            <a href="@($"/movies/{Movie.Id}")">@Movie.Title</a>
+        </h5>
+        <p class="card-text text-muted">
+            @(Movie.Year?.ToString() ?? "—")
+            @if (Movie.VoteAverage is { } v)
+            {
+                <span>· ★ @v.ToString("0.0")</span>
+            }
+        </p>
+        @if (Actions is not null)
+        {
+            <div class="mt-2">@Actions(Movie)</div>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>The movie to display.</summary>
+    [Parameter, EditorRequired]
+    public required MovieSummary Movie { get; set; }
+
+    /// <summary>Optional action UI (buttons) rendered in the card body for this movie.</summary>
+    [Parameter]
+    public RenderFragment<MovieSummary>? Actions { get; set; }
+}
