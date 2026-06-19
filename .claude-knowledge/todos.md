@@ -1,6 +1,6 @@
 # Work Queue
 
-Prioritized work. Also the input for the swarm planner. **Current state: repo shell, no code.**
+Prioritized work. Also the input for the swarm planner. **Current state: backend feature-complete (Waves 0–3, 2026-06-18).** All four work sets done — auth, collections, ratings, reviews, suggest (single + 10-round), shuffle, and insights are ported and exposed over HTTP; 173 tests green. Remaining items are reviewer follow-ups (below) and future directions (Blazor UI / deployment / CI).
 
 ## Priority Order
 
@@ -36,13 +36,13 @@ Phase 0 is committed — the swarm can now take over Phases 1+ (work sets below 
 - [x] Initial migration (`InitialCreate`) — task-004
 - [x] Npgsql / PostgreSQL wiring + design-time factory (`AddData(connectionString)`) — task-004
 
-### Set 3: API surface (`MovieNightPicker.Api`) — 🟡 PARTIAL (Wave 2)
+### Set 3: API surface (`MovieNightPicker.Api`) — ✅ DONE (Waves 2–3)
 **Files:** `src/MovieNightPicker.Api/**`
-- [x] Program.cs: DI, config, middleware (`AddAppServices`), ProblemDetails error handling — Wave 2, task-003
-- [x] **TMDB→Core adapter**: `TmdbMovieDataSource : IMovieDataSource` over `ITmdbClient` — Wave 2, task-003
-- [x] Read endpoints: search, discover/shuffle, movie/person detail, `POST /movies/suggest` — Wave 2, task-004
-- [ ] JWT auth + user-scoped endpoints (collections, ratings, reviews) — ⏭️ Wave 3
-- [ ] `GET /suggest/round/{n}` (10-round flow) + `GET /collections/{id}/insights` endpoints — ⏭️ Wave 3 (Core logic exists, no HTTP surface yet)
+- [x] Program.cs: DI, config, middleware (`AddAppServices`), ProblemDetails error handling — W2 task-003
+- [x] **TMDB→Core adapter**: `TmdbMovieDataSource : IMovieDataSource` over `ITmdbClient` — W2 task-003
+- [x] Read endpoints: search, discover/shuffle, movie/person detail, `POST /movies/suggest` — W2 task-004
+- [x] JWT auth (register/login, bearer) + user-scoped endpoints (collections, ratings, reviews) — W3 task-001/003/004/002
+- [x] `POST /suggest/round/{n}` (10-round flow) + `GET /collections/{id}/insights` endpoints — W3 task-005/006
 
 ### Set 4: Suggestion engine (`MovieNightPicker.Core`) — ✅ DONE (Waves 1–2)
 **Files:** `src/MovieNightPicker.Core/**`

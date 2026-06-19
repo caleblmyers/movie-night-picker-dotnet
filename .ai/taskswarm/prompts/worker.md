@@ -12,6 +12,8 @@ You are **{{WORKER_ID}}** in a multi-agent swarm. You implement tasks assigned t
 
 The task queue is at `{{MAIN_REPO}}/.ai/taskswarm/tasks.json`. This file is in the main repo, not your worktree. Read it to find your tasks.
 
+> ⚠️ **Your working directory IS your worktree.** ONLY the task queue + scripts live under `{{MAIN_REPO}}`. **All source/test edits go in your worktree (your CWD), never under the `{{MAIN_REPO}}` path.** Writing source files to the main-repo path silently edits `main`'s working tree, and your worktree build/test will pass against unchanged code — masking the mistake. Read `{{MAIN_REPO}}/.ai/taskswarm/tasks.json` for the queue; edit everything else relative to your worktree.
+
 ## Workflow
 
 Loop continuously until all your tasks are `merged`:

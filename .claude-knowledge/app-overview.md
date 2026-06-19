@@ -39,9 +39,9 @@ The differentiators — port these faithfully, they're the LINQ-heavy payoff:
 
 External REST API, wrapped in a typed `HttpClient`. This is the rehearsal for wrapping Epicor REST/BAQ endpoints on the job. Needs a TMDB API key (env / user-secrets).
 
-## Auth Flow (target)
+## Auth Flow ✅ (Wave 3)
 
-ASP.NET Core JWT bearer auth — mirrors the original's JWT setup. Register/login issues a JWT; `[Authorize]` on user-scoped endpoints; current user resolved from claims.
+ASP.NET Core JWT bearer auth — mirrors the original's JWT setup. `POST /auth/register` and `/auth/login` issue a signed JWT (password hashing in `Auth/PasswordHasher`); user-scoped endpoint groups call `.RequireAuthorization()`; the current user id is read from the JWT NameIdentifier claim via `Auth/CurrentUser.GetUserId`. Signing key comes from the `Jwt` config section (env/user-secrets; dev fallback only in Development).
 
 ## Key Files
 
@@ -50,14 +50,14 @@ Scaffolded in Phase 0. Solution file is `MovieNightPicker.slnx` (the .NET 10 XML
 | Concern | Files |
 |---|---|
 | Entry point | `src/MovieNightPicker.Api/Program.cs` (minimal API; `/health` placeholder) |
-| Auth | _(Wave 3 — `src/MovieNightPicker.Api/`)_ |
+| Auth | `src/MovieNightPicker.Api/Auth/` — JWT bearer (`JwtTokenService`, `PasswordHasher`, `JwtOptions`, `CurrentUser.GetUserId`) + `Endpoints/AuthEndpoints` (register/login) ✅ Wave 3 |
 | Database / EF Core | `src/MovieNightPicker.Data/` — `MovieNightPickerDbContext`, `Entities/` (8 models), `Migrations/` (`InitialCreate` + `AddRatingValueCheckConstraint`), `AddData()` ✅ W1–2 |
-| API endpoints | `src/MovieNightPicker.Api/Endpoints/` — `MovieEndpoints` (search/discover/detail/suggest), `PersonEndpoints`; `Program.cs` + `Extensions/`, `Adapters/`, `Contracts/` ✅ Wave 2 |
+| API endpoints | `src/MovieNightPicker.Api/Endpoints/` — movies (search/discover/detail/suggest), people, auth, collections, ratings, reviews, suggest-round, insights; `Services/` + `Adapters/` + `Contracts/` ✅ W2–3 |
 | TMDB client | `src/MovieNightPicker.Tmdb/` — `ITmdbClient`/`TmdbClient` + `Caching/CachingTmdbClient` (TTL cache, dedup, 429 backoff), `Dtos/`, `AddTmdbClient()` ✅ W1–2 |
 | Suggestion logic | `src/MovieNightPicker.Core/Suggestions/` (`RecommendationCascade`, `PreferenceExtractor`, `SuggestFlow`, `SuggestRoundGenerator`) + `Discovery/` + `Insights/CollectionInsights` ✅ W1–2 |
 | Movie-data abstraction | `src/MovieNightPicker.Core/IMovieDataSource.cs` — Core's own port; `Api/Adapters/TmdbMovieDataSource` adapts `ITmdbClient` to it ✅ Wave 2 |
 | Domain models | `src/MovieNightPicker.Core/Models/` + `Constants/` (genre/mood/era maps, quality floors) |
-| Tests | `tests/MovieNightPicker.Tests/` (xUnit, 135 tests; subfolders `Tmdb/`, `Core/`, `Api/`, `Data/`) |
+| Tests | `tests/MovieNightPicker.Tests/` (xUnit, 173 tests; subfolders `Tmdb/`, `Core/`, `Api/`, `Data/`) |
 
 **Reference graph:** `Core` ← `Data`, `Tmdb`; `Api` → Core/Data/Tmdb; `Tests` → all.
 
