@@ -1,0 +1,154 @@
+@page "/suggest"
+@using MovieNightPicker.Web.Services
+@inject HttpClient Http
+
+<PageTitle>Suggest a movie</PageTitle>
+
+<h1>Suggest a movie</h1>
+<p class="lead">
+    Add a few films you love, then let us recommend one. Want the guided experience?
+    Try the <a href="/suggest/rounds">10-round flow</a>.
+</p>
+
+<div class="row g-2 align-items-end mb-4 col-md-8">
+    <div class="col">
+        <label class="form-label">Find a movie you like</label>
+        <input class="form-control" placeholder="Search by title…"
+               @bind="searchQuery" @bind:event="oninput" @onkeydown="OnSearchKeyDown" />
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-primary" @onclick="SearchAsync"
+                disabled="@(searching || string.IsNullOrWhiteSpace(searchQuery))">
+            @(searching ? "Searching…" : "Search")
+        </button>
+    </div>
+</div>
+
+@if (searchResults is { Count: > 0 })
+{
+    <h2 class="h5">Search results</h2>
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-3 mb-4">
+        @foreach (var movie in searchResults)
+        {
+            <div class="col">
+                <MovieCard Movie="movie">
+                    <Actions Context="m">
+                        <button class="btn btn-sm btn-success" @onclick="() => AddPick(m)"
+                                disabled="@picks.Any(p => p.Id == m.Id)">
+                            @(picks.Any(p => p.Id == m.Id) ? "Added" : "Add to picks")
+                        </button>
+                    </Actions>
+                </MovieCard>
+            </div>
+        }
+    </div>
+}
+else if (searched && !searching)
+{
+    <p class="text-muted">No movies matched that search.</p>
+}
+
+@if (picks.Count > 0)
+{
+    <h2 class="h5">Your picks (@picks.Count)</h2>
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-4 g-3 mb-3">
+        @foreach (var movie in picks)
+        {
+            <div class="col">
+                <MovieCard Movie="movie">
+                    <Actions Context="m">
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => RemovePick(m)">
+                            Remove
+                        </button>
+                    </Actions>
+                </MovieCard>
+            </div>
+        }
+    </div>
+}
+
+<button class="btn btn-primary mb-4" @onclick="SuggestAsync"
+        disabled="@(picks.Count == 0 || suggesting)">
+    @(suggesting ? "Thinking…" : "Suggest a movie")
+</button>
+
+@if (suggestion is not null)
+{
+    <h2 class="h4">We recommend</h2>
+    <div class="col-md-4 mb-4">
+        <MovieCard Movie="suggestion" />
+    </div>
+}
+else if (suggested && !suggesting)
+{
+    <p class="text-muted">We couldn't find a recommendation from those picks — try adding a few more.</p>
+}
+
+@code {
+    private SuggestApiClient client = default!;
+
+    protected override void OnInitialized() => client = new SuggestApiClient(Http);
+
+    private string searchQuery = "";
+    private bool searching;
+    private bool searched;
+    private IReadOnlyList<MovieSummary>? searchResults;
+
+    private readonly List<MovieSummary> picks = [];
+
+    private bool suggesting;
+    private bool suggested;
+    private MovieSummary? suggestion;
+
+    private async Task OnSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchAsync();
+        }
+    }
+
+    private async Task SearchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            return;
+        }
+
+        searching = true;
+        var page = await Http.GetFromJsonAsync<MoviePage>(
+            $"/movies/search?query={Uri.EscapeDataString(searchQuery)}");
+        searchResults = page?.Results;
+        searched = true;
+        searching = false;
+    }
+
+    private void AddPick(MovieSummary movie)
+    {
+        if (picks.All(p => p.Id != movie.Id))
+        {
+            picks.Add(movie);
+            // A new pick invalidates the previous recommendation.
+            suggestion = null;
+            suggested = false;
+        }
+    }
+
+    private void RemovePick(MovieSummary movie)
+    {
+        picks.RemoveAll(p => p.Id == movie.Id);
+        suggestion = null;
+        suggested = false;
+    }
+
+    private async Task SuggestAsync()
+    {
+        suggesting = true;
+        suggestion = await client.SuggestAsync(picks.Select(p => p.Id).ToList());
+        suggested = true;
+        suggesting = false;
+    }
+
+    /// <summary>Minimal mirror of the API's <c>MoviePageResponse</c> for search.</summary>
+    private sealed record MoviePage(IReadOnlyList<MovieSummary> Results);
+}
