@@ -2,6 +2,20 @@
 
 Wave-by-wave record of what shipped and what we learned. Newest first.
 
+## Wave 4 — 2026-06-18 (Blazor WASM frontend) — full-stack feature-complete
+
+Added a **Blazor WebAssembly standalone** frontend (`MovieNightPicker.Web`) — the "full-stack .NET" stretch. Like Phase 0, a **foundation was scaffolded solo first** (the project, auth plumbing, shared display vocabulary), committed, then a 6-task page swarm built on top. All 6 merged first pass; build clean (0 warnings), format clean, 173 tests; smoke: API `/health` ok and the Blazor host page serves at :5032.
+
+**Foundation (solo, `69b9c2a` + `a1f62d2`):** WASM project + slnx; auth plumbing — `TokenStore` (localStorage via IJSRuntime), `JwtAuthenticationStateProvider` (decodes the JWT payload by hand), `BearerTokenHandler`, `AuthClient` + Login/Register; default `HttpClient`→API (config `Api:BaseUrl`) with bearer; `CascadingAuthenticationState`/`AuthorizeRouteView`; **CORS policy on the API** (`WebClientCorsPolicy`); shared `MovieSummary` + `MovieCard` + all NavLinks pre-added.
+
+**Swarm (page features):** browse (`MovieApiClient`, Search/Shuffle/Detail), suggest (`SuggestApiClient`, quick-suggest + 10-round flow), library (collections + insights, ratings/reviews + `RatingStars`). (task-001…006)
+
+**Bottleneck fixes for an all-one-project wave:** the foundation pre-wired every shared file (`Program.cs`, `NavMenu`, `_Imports`) and feature API clients are plain classes pages **new up from the injected `HttpClient`** (no DI registration) — so zero feature task touched a shared file. Reviewer credited "name the exact API contracts to mirror + lock down shared files" for the clean first-pass merge.
+
+**Environment notes:** `Blazored.LocalStorage` is NOT in this NuGet feed (used IJSRuntime); no bUnit either, so Web tasks validated via `dotnet build` (0 warnings) + the release runtime smoke, not unit tests.
+
+**New follow-ups (todos.md → Wave 4):** web API calls lack error handling (unhandled exceptions vs friendly banner); `CollectionDetail` does N+1 movie fetches; `MyRatings` shows "Movie #{tmdbId}" (no titles); `SuggestRounds` has no per-round skip. Also note (Wave 3 carry-over): the `[Range]` rating attribute is decorative under minimal APIs — manual check is what enforces it.
+
 ## Wave 3 — 2026-06-18 (auth + user data + suggest/insights HTTP) — backend feature-complete
 
 The final backend slice. 3 workers + reviewer, 6 tasks, all merged **first pass — zero rework**. Build clean (0 warnings), format clean, **173 tests** (up from 135). Smoke: `/health` ok; `/collections` returns 401 without a token (auth wired end-to-end).

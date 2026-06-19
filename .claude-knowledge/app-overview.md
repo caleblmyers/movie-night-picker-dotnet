@@ -49,7 +49,8 @@ Scaffolded in Phase 0. Solution file is `MovieNightPicker.slnx` (the .NET 10 XML
 
 | Concern | Files |
 |---|---|
-| Entry point | `src/MovieNightPicker.Api/Program.cs` (minimal API; `/health` placeholder) |
+| Entry point (API) | `src/MovieNightPicker.Api/Program.cs` (minimal API; `/health` + feature modules) |
+| Frontend (Blazor WASM) | `src/MovieNightPicker.Web/` — `Auth/` (token + JWT auth-state + bearer handler + `AuthClient`), `Services/` (per-feature API clients), `Pages/` (search/shuffle/detail/suggest/rounds/collections/my-ratings), `Components/` (`MovieCard`, `RatingStars`). API base in `wwwroot/appsettings.json`; API has a CORS policy for it ✅ Wave 4 |
 | Auth | `src/MovieNightPicker.Api/Auth/` — JWT bearer (`JwtTokenService`, `PasswordHasher`, `JwtOptions`, `CurrentUser.GetUserId`) + `Endpoints/AuthEndpoints` (register/login) ✅ Wave 3 |
 | Database / EF Core | `src/MovieNightPicker.Data/` — `MovieNightPickerDbContext`, `Entities/` (8 models), `Migrations/` (`InitialCreate` + `AddRatingValueCheckConstraint`), `AddData()` ✅ W1–2 |
 | API endpoints | `src/MovieNightPicker.Api/Endpoints/` — movies (search/discover/detail/suggest), people, auth, collections, ratings, reviews, suggest-round, insights; `Services/` + `Adapters/` + `Contracts/` ✅ W2–3 |

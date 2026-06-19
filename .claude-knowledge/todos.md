@@ -1,6 +1,6 @@
 # Work Queue
 
-Prioritized work. Also the input for the swarm planner. **Current state: backend feature-complete (Waves 0–3, 2026-06-18).** All four work sets done — auth, collections, ratings, reviews, suggest (single + 10-round), shuffle, and insights are ported and exposed over HTTP; 173 tests green. Remaining items are reviewer follow-ups (below) and future directions (Blazor UI / deployment / CI).
+Prioritized work. Also the input for the swarm planner. **Current state: full-stack feature-complete (Waves 0–4, 2026-06-18).** Backend (auth, collections, ratings, reviews, suggest single + 10-round, shuffle, insights) + a Blazor WASM frontend are done; 173 tests green, app boots (API `/health` ok, Blazor host serves). Remaining items are reviewer follow-ups (below) and future directions (deployment / CI / polish).
 
 ## Priority Order
 
@@ -53,6 +53,13 @@ Phase 0 is committed — the swarm can now take over Phases 1+ (work sets below 
 - [x] Collection insights aggregation (`CollectionInsights`) — W2 task-002
 - ℹ️ Both 10-round flow and insights need HTTP endpoints (see Set 3, Wave 3)
 
+### Set 5: Web UI (`MovieNightPicker.Web`, Blazor WASM) — ✅ DONE (Wave 4, 2026-06-18)
+**Files:** `src/MovieNightPicker.Web/**`
+- [x] Foundation (solo): WASM project, auth plumbing (localStorage token, JWT auth-state, bearer handler, login/register), HttpClient→API, CORS on API, shared `MovieSummary`/`MovieCard` + NavLinks
+- [x] Browse: `MovieApiClient`, Search, Shuffle, Movie detail — W4 task-001/002
+- [x] Suggest: `SuggestApiClient`, quick-suggest + 10-round flow — W4 task-003/004
+- [x] Library: collections (+ insights) and ratings/reviews (+ `RatingStars`) — W4 task-005/006
+
 ## Parallelism Matrix
 
 |        | Set 1 | Set 2 | Set 3 | Set 4 |
@@ -90,3 +97,9 @@ Phase 0 is committed — the swarm can now take over Phases 1+ (work sets below 
 - [ ] `PasswordHasher.Verify` (task-001) reads the stored iteration count, so it survives a parameter bump — but there's no rehash-on-successful-login path to migrate old hashes to a stronger cost. Add one if `Iterations` is ever raised.
 - [ ] TMDB→Core `Movie` mapping is now duplicated: `Adapters/TmdbMovieDataSource` and `Services/InsightsService.ToMovie` (task-006) both map the same DTO. Extract a shared mapper (e.g. a `TmdbMovie.ToCore()` extension) to keep them from drifting.
 - [ ] Rating value validation is doubled (task-004): `UpsertRatingRequest` carries a `[Range(1,10)]` attribute *and* the handler does a manual `body.Value is < 1 or > 10` check. Minimal APIs don't auto-run DataAnnotations without a validation filter, so the attribute is currently decorative — the manual check is what enforces it. Either add a global validation filter (and drop the manual checks across handlers) or remove the now-misleading attributes.
+
+### Wave 4 follow-ups (from reviewer — Blazor web UI)
+- [ ] Web API calls have no error handling (task-003 `Suggest.razor` / `SuggestApiClient`): `Http.GetFromJsonAsync` and the suggest calls throw on a non-success / network failure, surfacing as an unhandled Blazor exception rather than a friendly message. Consider a shared try/catch or an error-display helper across the web pages so transient API failures show a toast/banner instead of breaking the page.
+- [ ] `CollectionDetail.razor` (task-005) loads member movies one-by-one in a sequential `foreach` (N+1 `GET /movies/{id}`), and re-fetches the whole list after every remove. Fine for small collections; consider `Task.WhenAll` for parallel fetch, or a batch movie-detail endpoint, if collections grow large.
+- [ ] `MyRatings.razor` (task-006) lists rated/reviewed movies as "Movie #{tmdbId}" — no titles, because `/ratings` & `/reviews` only store tmdbId. Consider resolving titles (per-row `GET /movies/{id}` or a batch lookup) so the management view is human-readable.
+- [ ] `SuggestRounds.razor` (task-004) requires a Pick to advance each round — there's no "skip this round" to move on without adding to the selection. The early "Finish & recommend now" covers bailing out, but a per-round skip (advance without picking) would be a natural UX addition.
