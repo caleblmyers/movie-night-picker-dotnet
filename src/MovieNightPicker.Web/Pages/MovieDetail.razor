@@ -1,0 +1,72 @@
+@page "/movies/{Id:int}"
+@using MovieNightPicker.Web.Services
+@inject HttpClient Http
+
+<PageTitle>@(movie?.Title ?? "Movie")</PageTitle>
+
+@if (loading)
+{
+    <p class="text-muted">Loading…</p>
+}
+else if (movie is null)
+{
+    <h1>Movie not found</h1>
+    <p class="text-muted">We couldn't find a movie with id @Id. It may have been removed.</p>
+    <a class="btn btn-outline-secondary" href="/search">Back to search</a>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-md-4">
+            @if (movie.PosterUrl is not null)
+            {
+                <img src="@movie.PosterUrl" class="img-fluid rounded" alt="@movie.Title poster" />
+            }
+            else
+            {
+                <div class="bg-secondary-subtle rounded d-flex align-items-center justify-content-center"
+                     style="aspect-ratio: 2 / 3;">
+                    <span class="text-muted">No poster</span>
+                </div>
+            }
+        </div>
+        <div class="col-md-8">
+            <h1>@movie.Title</h1>
+            <p class="text-muted">
+                @(movie.Year?.ToString() ?? "Year unknown")
+                @if (movie.VoteAverage is { } v)
+                {
+                    <span>· ★ @v.ToString("0.0")</span>
+                    @if (movie.VoteCount is { } c)
+                    {
+                        <span class="ms-1">(@c votes)</span>
+                    }
+                }
+                @if (movie.Runtime is { } runtime)
+                {
+                    <span>· @runtime min</span>
+                }
+            </p>
+            <p>@(string.IsNullOrWhiteSpace(movie.Overview) ? "No overview available." : movie.Overview)</p>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>TMDB movie id from the route.</summary>
+    [Parameter]
+    public int Id { get; set; }
+
+    private bool loading = true;
+    private MovieSummary? movie;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        loading = true;
+        movie = null;
+
+        var client = new MovieApiClient(Http);
+        movie = await client.GetDetailAsync(Id);
+        loading = false;
+    }
+}

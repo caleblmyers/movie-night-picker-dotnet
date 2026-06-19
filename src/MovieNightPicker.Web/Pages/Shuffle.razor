@@ -1,0 +1,126 @@
+@page "/shuffle"
+@using MovieNightPicker.Web.Services
+@inject HttpClient Http
+
+<PageTitle>Shuffle movies</PageTitle>
+
+<h1>Shuffle</h1>
+<p class="lead">Dial in a few filters and let the picker surprise you.</p>
+
+<EditForm Model="@form" OnValidSubmit="@ShuffleAsync" class="row g-3 mb-4">
+    <div class="col-md-4">
+        <label class="form-label">Genre IDs</label>
+        <InputText @bind-Value="form.GenresText" class="form-control" placeholder="e.g. 28, 12" />
+        <div class="form-text">TMDB genre ids, comma-separated.</div>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Era</label>
+        <InputSelect @bind-Value="form.Era" class="form-select">
+            <option value="">Any era</option>
+            @foreach (var era in Eras)
+            {
+                <option value="@era">@era</option>
+            }
+        </InputSelect>
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Mood</label>
+        <InputSelect @bind-Value="form.Mood" class="form-select">
+            <option value="">Any mood</option>
+            @foreach (var mood in Moods)
+            {
+                <option value="@mood">@mood</option>
+            }
+        </InputSelect>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Year from</label>
+        <InputNumber @bind-Value="form.YearStart" class="form-control" placeholder="1990" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Year to</label>
+        <InputNumber @bind-Value="form.YearEnd" class="form-control" placeholder="1999" />
+    </div>
+    <div class="col-12">
+        <button type="submit" class="btn btn-primary" disabled="@busy">
+            @(busy ? "Shuffling…" : "Shuffle")
+        </button>
+        @if (results is not null && results.Count > 0)
+        {
+            <button type="button" class="btn btn-outline-secondary ms-2" @onclick="ShuffleAsync" disabled="@busy">
+                Shuffle again
+            </button>
+        }
+    </div>
+</EditForm>
+
+@if (busy)
+{
+    <p class="text-muted">Shuffling…</p>
+}
+else if (results is not null)
+{
+    @if (results.Count == 0)
+    {
+        <p class="text-muted">Nothing matched those filters. Try loosening them and shuffle again.</p>
+    }
+    else
+    {
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-4">
+            @foreach (var movie in results)
+            {
+                <div class="col">
+                    <MovieCard Movie="movie" />
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private static readonly string[] Eras =
+        ["classic", "80s", "90s", "2000-2009", "2010-2019", "2020-present", "modern-era"];
+
+    private static readonly string[] Moods =
+        ["dark", "epic", "fantasy", "feel-good", "funny", "inspiring", "nostalgic", "romantic", "scary", "suspenseful"];
+
+    private readonly FilterForm form = new();
+    private bool busy;
+    private IReadOnlyList<MovieSummary>? results;
+
+    private async Task ShuffleAsync()
+    {
+        busy = true;
+        var client = new MovieApiClient(Http);
+        results = await client.ShuffleAsync(form.ToFilters());
+        busy = false;
+    }
+
+    /// <summary>Bindable form state; converts to the client <see cref="DiscoverFilters"/> on submit.</summary>
+    private sealed class FilterForm
+    {
+        public string? GenresText { get; set; }
+        public string? Era { get; set; }
+        public string? Mood { get; set; }
+        public int? YearStart { get; set; }
+        public int? YearEnd { get; set; }
+
+        public DiscoverFilters ToFilters() => new()
+        {
+            Genres = ParseIds(GenresText),
+            Era = Era,
+            Mood = Mood,
+            YearStart = YearStart,
+            YearEnd = YearEnd,
+        };
+
+        private static IReadOnlyList<int> ParseIds(string? text) =>
+            string.IsNullOrWhiteSpace(text)
+                ? []
+                : text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(s => int.TryParse(s, out var n) ? n : (int?)null)
+                    .Where(n => n is not null)
+                    .Select(n => n!.Value)
+                    .ToList();
+    }
+}

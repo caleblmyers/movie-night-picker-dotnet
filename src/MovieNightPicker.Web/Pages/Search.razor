@@ -1,0 +1,64 @@
+@page "/search"
+@using MovieNightPicker.Web.Services
+@inject HttpClient Http
+
+<PageTitle>Search movies</PageTitle>
+
+<h1>Search</h1>
+
+<EditForm Model="@this" OnValidSubmit="@SearchAsync" class="row g-2 mb-4">
+    <div class="col-sm-9 col-md-6">
+        <InputText @bind-Value="query" class="form-control" placeholder="Search for a movie…"
+                   aria-label="Movie title" />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary" disabled="@(busy || string.IsNullOrWhiteSpace(query))">
+            @(busy ? "Searching…" : "Search")
+        </button>
+    </div>
+</EditForm>
+
+@if (busy)
+{
+    <p class="text-muted">Searching…</p>
+}
+else if (resultPage is not null)
+{
+    @if (resultPage.Results.Count == 0)
+    {
+        <p class="text-muted">No movies matched “@lastQuery”. Try another title.</p>
+    }
+    else
+    {
+        <p class="text-muted">@resultPage.TotalResults result@(resultPage.TotalResults == 1 ? "" : "s") for “@lastQuery”.</p>
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-4">
+            @foreach (var movie in resultPage.Results)
+            {
+                <div class="col">
+                    <MovieCard Movie="movie" />
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private string query = "";
+    private string lastQuery = "";
+    private bool busy;
+    private MoviePage? resultPage;
+
+    private async Task SearchAsync()
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return;
+        }
+
+        busy = true;
+        lastQuery = query;
+        var client = new MovieApiClient(Http);
+        resultPage = await client.SearchAsync(query);
+        busy = false;
+    }
+}
