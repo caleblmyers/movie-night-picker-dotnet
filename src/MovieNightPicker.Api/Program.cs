@@ -10,8 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// TMDB client, data layer, and the Core-facing adapter.
-builder.Services.AddAppServices(builder.Configuration);
+// TMDB client, data layer, the Core-facing adapter, auth, and feature services.
+builder.Services.AddAppServices(builder.Configuration, builder.Environment);
 
 // RFC7807 problem-details responses for unhandled exceptions.
 builder.Services.AddProblemDetails();
@@ -29,12 +29,21 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 // Liveness probe — replaced by real endpoints as features land (see .claude-knowledge/todos.md).
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
     .WithName("HealthCheck");
 
 app.MapMovieEndpoints();
 app.MapPersonEndpoints();
+app.MapAuthEndpoints();
+app.MapCollectionEndpoints();
+app.MapRatingEndpoints();
+app.MapReviewEndpoints();
+app.MapSuggestEndpoints();
+app.MapInsightsEndpoints();
 
 app.Run();
 
