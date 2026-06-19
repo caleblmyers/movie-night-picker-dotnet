@@ -29,6 +29,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors(MovieNightPicker.Api.Extensions.ServiceCollectionExtensions.WebClientCorsPolicy);
+
 app.UseAuthentication();
 app.UseAuthorization();
 

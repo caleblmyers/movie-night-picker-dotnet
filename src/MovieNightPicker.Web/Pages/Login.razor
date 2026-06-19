@@ -1,0 +1,66 @@
+@page "/login"
+@inject AuthClient Auth
+@inject NavigationManager Nav
+
+<PageTitle>Sign in</PageTitle>
+
+<h1>Sign in</h1>
+
+<EditForm Model="@model" OnValidSubmit="@SubmitAsync" class="col-md-6">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <InputText @bind-Value="model.Email" class="form-control" autocomplete="username" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Password</label>
+        <InputText type="password" @bind-Value="model.Password" class="form-control" autocomplete="current-password" />
+    </div>
+
+    @if (error is not null)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    <button type="submit" class="btn btn-primary" disabled="@busy">
+        @(busy ? "Signing in…" : "Sign in")
+    </button>
+    <a class="btn btn-link" href="/register">Create an account</a>
+</EditForm>
+
+@code {
+    private readonly LoginModel model = new();
+    private bool busy;
+    private string? error;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private async Task SubmitAsync()
+    {
+        busy = true;
+        error = null;
+
+        var result = await Auth.LoginAsync(new LoginRequest(model.Email, model.Password));
+        busy = false;
+
+        if (result is null)
+        {
+            error = "Invalid email or password.";
+            return;
+        }
+
+        Nav.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "" : Uri.UnescapeDataString(ReturnUrl));
+    }
+
+    private sealed class LoginModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Password { get; set; } = "";
+    }
+}

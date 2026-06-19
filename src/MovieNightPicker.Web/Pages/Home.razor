@@ -1,0 +1,19 @@
+@page "/"
+
+<PageTitle>Movie Night Picker</PageTitle>
+
+<h1>Movie Night Picker</h1>
+
+<p class="lead">Find something to watch — shuffle the catalogue, run the 10-round suggestion flow, and keep collections, ratings, and reviews.</p>
+
+<AuthorizeView>
+    <Authorized>
+        <p>Welcome back, <strong>@context.User.Identity?.Name</strong>. Pick a feature from the menu to get started.</p>
+    </Authorized>
+    <NotAuthorized>
+        <p>
+            <a class="btn btn-primary" href="login">Sign in</a>
+            <a class="btn btn-outline-secondary" href="register">Create an account</a>
+        </p>
+    </NotAuthorized>
+</AuthorizeView>

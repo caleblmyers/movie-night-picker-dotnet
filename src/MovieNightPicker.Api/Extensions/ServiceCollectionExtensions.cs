@@ -16,10 +16,17 @@ namespace MovieNightPicker.Api.Extensions;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
+    /// <summary>CORS policy name allowing the Blazor WASM client to call the API from the browser.</summary>
+    public const string WebClientCorsPolicy = "WebClient";
+
     // Insecure, well-known fallback so the app boots in Development without a configured
     // secret. Never used outside Development — see the guard below.
     private const string DevelopmentSigningKey =
         "dev-only-insecure-jwt-signing-key-do-not-use-in-production";
+
+    // Default Blazor WASM dev-server origins (src/MovieNightPicker.Web launchSettings).
+    private static readonly string[] DefaultWebOrigins =
+        ["http://localhost:5032", "https://localhost:7251"];
 
     public static IServiceCollection AddAppServices(
         this IServiceCollection services, IConfiguration config, IHostEnvironment environment)
@@ -34,6 +41,13 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMovieDataSource, TmdbMovieDataSource>();
 
         AddAuth(services, config, environment);
+
+        // Allow the Blazor WASM client (browser origin) to call the API. Origins come
+        // from config (Cors:AllowedOrigins), falling back to the dev-server origins.
+        var origins = config.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? DefaultWebOrigins;
+        services.AddCors(options => options.AddPolicy(
+            WebClientCorsPolicy,
+            policy => policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod()));
 
         // Feature services (scoped — they take the scoped DbContext / TMDB client).
         services.AddScoped<CollectionService>();

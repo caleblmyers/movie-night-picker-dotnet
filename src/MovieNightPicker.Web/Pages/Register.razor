@@ -1,0 +1,71 @@
+@page "/register"
+@inject AuthClient Auth
+@inject NavigationManager Nav
+
+<PageTitle>Create account</PageTitle>
+
+<h1>Create account</h1>
+
+<EditForm Model="@model" OnValidSubmit="@SubmitAsync" class="col-md-6">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label class="form-label">Name</label>
+        <InputText @bind-Value="model.Name" class="form-control" autocomplete="name" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <InputText @bind-Value="model.Email" class="form-control" autocomplete="username" />
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Password</label>
+        <InputText type="password" @bind-Value="model.Password" class="form-control" autocomplete="new-password" />
+    </div>
+
+    @if (error is not null)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+
+    <button type="submit" class="btn btn-primary" disabled="@busy">
+        @(busy ? "Creating…" : "Create account")
+    </button>
+    <a class="btn btn-link" href="/login">I already have an account</a>
+</EditForm>
+
+@code {
+    private readonly RegisterModel model = new();
+    private bool busy;
+    private string? error;
+
+    private async Task SubmitAsync()
+    {
+        busy = true;
+        error = null;
+
+        var result = await Auth.RegisterAsync(new RegisterRequest(model.Email, model.Password, model.Name));
+        busy = false;
+
+        if (result is null)
+        {
+            error = "Could not create the account — the email may already be in use.";
+            return;
+        }
+
+        Nav.NavigateTo("");
+    }
+
+    private sealed class RegisterModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Name { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MinLength(6)]
+        public string Password { get; set; } = "";
+    }
+}
