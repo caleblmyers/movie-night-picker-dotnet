@@ -13,9 +13,9 @@ namespace MovieNightPicker.Tests.Api;
 
 /// <summary>
 /// Direct <see cref="RatingReviewService"/> tests over an open in-memory SQLite
-/// connection, plus request-layer validation tests against the endpoint handlers.
-/// Covers upsert-not-duplicate, 1-10 range rejection, review CRUD, and cross-user
-/// isolation.
+/// connection, plus the upsert handlers' happy paths. Covers upsert-not-duplicate,
+/// review CRUD, and cross-user isolation. Request validation (1-10 range, required
+/// content) now lives in ValidationFilterTests against the ValidationEndpointFilter.
 /// </summary>
 public class RatingReviewServiceTests
 {
@@ -89,25 +89,9 @@ public class RatingReviewServiceTests
         Assert.False(await service.DeleteRatingAsync(userId, 603, default));
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(11)]
-    [InlineData(-3)]
-    public async Task Upsert_rating_endpoint_rejects_out_of_range_value(int value)
-    {
-        var (db, conn) = CreateDb();
-        using var _ = conn;
-        await using var __ = db;
-        var service = new RatingReviewService(db);
-        var userId = await SeedUserAsync(db, "owner@example.com");
-
-        var result = await RatingEndpoints.UpsertAsync(
-            603, new UpsertRatingRequest(value), PrincipalFor(userId), service, default);
-
-        // Rejected at the request layer with a 400 — never reaches the DB constraint.
-        Assert.IsType<ValidationProblem>(result.Result);
-        Assert.Null(await service.GetRatingAsync(userId, 603, default));
-    }
+    // Out-of-range rejection is enforced by ValidationEndpointFilter (see
+    // ValidationFilterTests) — the upsert handler no longer range-checks, so it's
+    // covered there against the filter/route rather than the bare handler.
 
     [Fact]
     public async Task Upsert_rating_endpoint_accepts_in_range_value()
@@ -160,21 +144,8 @@ public class RatingReviewServiceTests
         Assert.False(await service.DeleteReviewAsync(userId, 603, default));
     }
 
-    [Fact]
-    public async Task Upsert_review_endpoint_rejects_empty_content()
-    {
-        var (db, conn) = CreateDb();
-        using var _ = conn;
-        await using var __ = db;
-        var service = new RatingReviewService(db);
-        var userId = await SeedUserAsync(db, "owner@example.com");
-
-        var result = await ReviewEndpoints.UpsertAsync(
-            603, new UpsertReviewRequest("   "), PrincipalFor(userId), service, default);
-
-        Assert.IsType<ValidationProblem>(result.Result);
-        Assert.Null(await service.GetReviewAsync(userId, 603, default));
-    }
+    // Empty-content rejection is enforced by ValidationEndpointFilter (the [Required]
+    // attribute) and covered in ValidationFilterTests, not against the bare handler.
 
     // ---- Cross-user isolation ----
 

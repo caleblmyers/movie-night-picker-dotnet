@@ -5,11 +5,12 @@ namespace MovieNightPicker.Api.Contracts;
 
 /// <summary>
 /// Request body for upserting a rating (<c>PUT /ratings/{tmdbId}</c>). The value is
-/// validated to the documented 1-10 scale at the request layer so a friendly 400 is
-/// returned before the DB's CK_Rating_RatingValue_Range check ever fires.
+/// validated to the documented 1-10 scale by the ValidationEndpointFilter (which runs
+/// these DataAnnotations) so a friendly 400 is returned before the DB's
+/// CK_Rating_RatingValue_Range check ever fires.
 /// </summary>
 public sealed record UpsertRatingRequest(
-    [property: Range(1, 10)] int Value);
+    [property: Range(1, 10, ErrorMessage = "Rating value must be between 1 and 10.")] int Value);
 
 /// <summary>A user's rating for a movie.</summary>
 public sealed record RatingResponse(
@@ -19,9 +20,13 @@ public sealed record RatingResponse(
         new(r.TmdbId, r.RatingValue, r.CreatedAt, r.UpdatedAt);
 }
 
-/// <summary>Request body for upserting a review (<c>PUT /reviews/{tmdbId}</c>).</summary>
+/// <summary>
+/// Request body for upserting a review (<c>PUT /reviews/{tmdbId}</c>). Non-empty
+/// content is enforced by the ValidationEndpointFilter via the <c>[Required]</c>
+/// attribute (no manual check in the handler).
+/// </summary>
 public sealed record UpsertReviewRequest(
-    [property: Required] string Content);
+    [property: Required(ErrorMessage = "Review content is required.")] string Content);
 
 /// <summary>A user's written review for a movie.</summary>
 public sealed record ReviewResponse(

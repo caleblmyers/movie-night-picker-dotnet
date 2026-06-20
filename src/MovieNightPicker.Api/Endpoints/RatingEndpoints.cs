@@ -3,14 +3,16 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using MovieNightPicker.Api.Auth;
 using MovieNightPicker.Api.Contracts;
 using MovieNightPicker.Api.Services;
+using MovieNightPicker.Api.Validation;
 
 namespace MovieNightPicker.Api.Endpoints;
 
 /// <summary>
 /// User-scoped ratings HTTP surface (1-10 per movie). The whole group requires
 /// authentication and every handler scopes to <see cref="CurrentUser.GetUserId"/>.
-/// The rating value is validated to 1-10 here so a friendly 400 beats the DB's
-/// check constraint. Handlers return typed results for host-free unit testing.
+/// The rating value's 1-10 range is enforced by <see cref="ValidationEndpointFilter{T}"/>
+/// (running the <c>[Range]</c> attribute) so a friendly 400 beats the DB's check
+/// constraint. Handlers return typed results for host-free unit testing.
 /// </summary>
 public static class RatingEndpoints
 {
@@ -20,7 +22,9 @@ public static class RatingEndpoints
 
         ratings.MapGet("/", ListAsync).WithName("ListRatings");
         ratings.MapGet("/{tmdbId:int}", GetAsync).WithName("GetRating");
-        ratings.MapPut("/{tmdbId:int}", UpsertAsync).WithName("UpsertRating");
+        ratings.MapPut("/{tmdbId:int}", UpsertAsync)
+            .WithRequestValidation<UpsertRatingRequest>()
+            .WithName("UpsertRating");
         ratings.MapDelete("/{tmdbId:int}", DeleteAsync).WithName("DeleteRating");
 
         return app;
@@ -64,16 +68,8 @@ public static class RatingEndpoints
             return TypedResults.Unauthorized();
         }
 
-        // Validate the 1-10 scale here so the caller gets a 400 instead of a raw DB
-        // CK_Rating_RatingValue_Range violation.
-        if (body.Value is < 1 or > 10)
-        {
-            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["value"] = ["Rating value must be between 1 and 10."],
-            });
-        }
-
+        // The 1-10 range is enforced by WithRequestValidation<UpsertRatingRequest>()
+        // (the [Range] attribute), so by the time we get here the value is valid.
         var rating = await service.UpsertRatingAsync(userId, tmdbId, body.Value, ct);
         return TypedResults.Ok(RatingResponse.FromEntity(rating));
     }

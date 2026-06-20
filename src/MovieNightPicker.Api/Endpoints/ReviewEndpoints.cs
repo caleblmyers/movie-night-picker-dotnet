@@ -3,14 +3,15 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using MovieNightPicker.Api.Auth;
 using MovieNightPicker.Api.Contracts;
 using MovieNightPicker.Api.Services;
+using MovieNightPicker.Api.Validation;
 
 namespace MovieNightPicker.Api.Endpoints;
 
 /// <summary>
 /// User-scoped reviews HTTP surface (one review per movie). The whole group requires
 /// authentication and every handler scopes to <see cref="CurrentUser.GetUserId"/>.
-/// Review content must be non-empty. Handlers return typed results for host-free
-/// unit testing.
+/// Non-empty content is enforced by <see cref="ValidationEndpointFilter{T}"/> (the
+/// <c>[Required]</c> attribute). Handlers return typed results for host-free unit testing.
 /// </summary>
 public static class ReviewEndpoints
 {
@@ -20,7 +21,9 @@ public static class ReviewEndpoints
 
         reviews.MapGet("/", ListAsync).WithName("ListReviews");
         reviews.MapGet("/{tmdbId:int}", GetAsync).WithName("GetReview");
-        reviews.MapPut("/{tmdbId:int}", UpsertAsync).WithName("UpsertReview");
+        reviews.MapPut("/{tmdbId:int}", UpsertAsync)
+            .WithRequestValidation<UpsertReviewRequest>()
+            .WithName("UpsertReview");
         reviews.MapDelete("/{tmdbId:int}", DeleteAsync).WithName("DeleteReview");
 
         return app;
@@ -64,14 +67,8 @@ public static class ReviewEndpoints
             return TypedResults.Unauthorized();
         }
 
-        if (string.IsNullOrWhiteSpace(body.Content))
-        {
-            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["content"] = ["Review content is required."],
-            });
-        }
-
+        // Non-empty content is enforced by WithRequestValidation<UpsertReviewRequest>()
+        // (the [Required] attribute) before the handler runs.
         var review = await service.UpsertReviewAsync(userId, tmdbId, body.Content.Trim(), ct);
         return TypedResults.Ok(ReviewResponse.FromEntity(review));
     }
