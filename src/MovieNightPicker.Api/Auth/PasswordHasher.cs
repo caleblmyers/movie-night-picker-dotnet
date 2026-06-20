@@ -47,4 +47,21 @@ public sealed class PasswordHasher
         var candidate = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, Algorithm, key.Length);
         return CryptographicOperations.FixedTimeEquals(candidate, key);
     }
+
+    /// <summary>
+    /// True when the stored hash was produced with fewer iterations than the current
+    /// <see cref="Iterations"/> cost — i.e. it should be re-hashed (e.g. on a successful
+    /// login) to migrate it to the stronger parameters. Unparseable hashes also return
+    /// true so a malformed/legacy hash gets replaced.
+    /// </summary>
+    public bool NeedsRehash(string hash)
+    {
+        var parts = hash.Split('.', 3);
+        if (parts.Length != 3 || !int.TryParse(parts[0], out var iterations))
+        {
+            return true;
+        }
+
+        return iterations < Iterations;
+    }
 }

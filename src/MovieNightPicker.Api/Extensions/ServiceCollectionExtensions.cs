@@ -1,5 +1,7 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using MovieNightPicker.Api.Adapters;
 using MovieNightPicker.Api.Auth;
@@ -8,6 +10,13 @@ using MovieNightPicker.Core;
 using MovieNightPicker.Data;
 
 namespace MovieNightPicker.Api.Extensions;
+
+/// <summary>Named rate-limit policies applied to endpoint groups.</summary>
+public static class RateLimitPolicies
+{
+    /// <summary>Throttles the <c>/auth</c> group (register/login) per client IP.</summary>
+    public const string Auth = "auth";
+}
 
 /// <summary>
 /// Composition root for the API: wires the TMDB client, the data layer, the
@@ -41,6 +50,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMovieDataSource, TmdbMovieDataSource>();
 
         AddAuth(services, config, environment);
+        AddRateLimiting(services);
 
         // Allow the Blazor WASM client (browser origin) to call the API. Origins come
         // from config (Cors:AllowedOrigins), falling back to the dev-server origins.
@@ -95,5 +105,27 @@ public static class ServiceCollectionExtensions
             });
 
         services.AddAuthorization();
+    }
+
+    /// <summary>
+    /// Registers a fixed-window rate limiter for the auth surface: ~10 requests/minute
+    /// per client IP. Over the limit the middleware short-circuits with 429.
+    /// </summary>
+    private static void AddRateLimiting(IServiceCollection services)
+    {
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            options.AddPolicy(RateLimitPolicies.Auth, httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }));
+        });
     }
 }

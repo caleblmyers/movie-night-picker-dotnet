@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using MovieNightPicker.Api.Auth;
 using MovieNightPicker.Api.Contracts;
+using MovieNightPicker.Api.Extensions;
 using MovieNightPicker.Data;
 using MovieNightPicker.Data.Entities;
 
@@ -19,7 +20,9 @@ public static class AuthEndpoints
 {
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        var auth = app.MapGroup("/auth");
+        // Throttle the auth surface (register/login) per client IP — see the "auth"
+        // rate-limit policy in ServiceCollectionExtensions. Over the limit => 429.
+        var auth = app.MapGroup("/auth").RequireRateLimiting(RateLimitPolicies.Auth);
 
         auth.MapPost("/register", RegisterAsync).WithName("Register");
         auth.MapPost("/login", LoginAsync).WithName("Login");
@@ -92,10 +95,20 @@ public static class AuthEndpoints
     {
         var email = body.Email?.Trim().ToLowerInvariant() ?? string.Empty;
 
+        var password = body.Password ?? string.Empty;
+
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
-        if (user is null || !hasher.Verify(body.Password ?? string.Empty, user.Password))
+        if (user is null || !hasher.Verify(password, user.Password))
         {
             return TypedResults.Unauthorized();
+        }
+
+        // Migrate stored hashes to the current (stronger) cost transparently on login.
+        if (hasher.NeedsRehash(user.Password))
+        {
+            user.Password = hasher.Hash(password);
+            user.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
         }
 
         return TypedResults.Ok(new AuthResponse(tokens.CreateToken(user), AuthUser.FromEntity(user)));

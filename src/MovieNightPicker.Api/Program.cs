@@ -31,6 +31,8 @@ app.UseHttpsRedirection();
 
 app.UseCors(MovieNightPicker.Api.Extensions.ServiceCollectionExtensions.WebClientCorsPolicy);
 
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
