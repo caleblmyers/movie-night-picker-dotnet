@@ -9,10 +9,13 @@ namespace MovieNightPicker.Tests.Tmdb;
 
 public class CachingTmdbClientTests
 {
+    // The decorator resolves its inner client through a factory per call; the counting
+    // fake is supplied via that factory (here always the same instance, so call counts
+    // still accumulate on it).
     private static CachingTmdbClient Create(
         ITmdbClient inner, IMemoryCache? cache = null, TmdbCacheOptions? options = null) =>
         new(
-            inner,
+            () => inner,
             cache ?? new MemoryCache(new MemoryCacheOptions()),
             Options.Create(options ?? new TmdbCacheOptions()));
 
@@ -102,6 +105,26 @@ public class CachingTmdbClientTests
 
         Assert.Equal(1, inner.GetMovieCalls);
         Assert.Same(results[0], results[1]);
+    }
+
+    [Fact]
+    public async Task InnerClient_IsResolvedFromFactoryPerUnderlyingFetch()
+    {
+        // The factory must be invoked on each cache-miss fetch (not captured once), so a
+        // fresh, factory-managed HttpClient is used per call. A cache hit skips it entirely.
+        var factoryCalls = 0;
+        var inner = new CountingTmdbClient();
+        var sut = new CachingTmdbClient(
+            () => { factoryCalls++; return inner; },
+            new MemoryCache(new MemoryCacheOptions()),
+            Options.Create(new TmdbCacheOptions()));
+
+        await sut.GetMovieAsync(1); // miss -> resolves inner
+        await sut.GetMovieAsync(2); // different key, miss -> resolves inner again
+        await sut.GetMovieAsync(1); // cache hit -> no inner fetch, no factory call
+
+        Assert.Equal(2, factoryCalls);
+        Assert.Equal(2, inner.GetMovieCalls);
     }
 
     [Fact]

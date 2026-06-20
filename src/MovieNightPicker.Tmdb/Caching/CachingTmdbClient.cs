@@ -17,19 +17,26 @@ namespace MovieNightPicker.Tmdb.Caching;
 /// fetch — then stores the non-null result for the category TTL. When
 /// <see cref="TmdbCacheOptions.Enabled"/> is <c>false</c> every call passes straight
 /// through to the inner client.
+/// <para>
+/// The inner client is resolved through a factory (<see cref="_innerFactory"/>) on
+/// each underlying fetch rather than captured once. This decorator is a singleton
+/// (it owns the shared cache + in-flight registry), but the inner <c>TmdbClient</c>
+/// is factory-managed by <c>IHttpClientFactory</c>; capturing one instance would pin
+/// its pooled <c>HttpClient</c> for the app lifetime and defeat handler rotation.
+/// </para>
 /// </remarks>
 public sealed class CachingTmdbClient : ITmdbClient
 {
-    private readonly ITmdbClient _inner;
+    private readonly Func<ITmdbClient> _innerFactory;
     private readonly IMemoryCache _cache;
     private readonly TmdbCacheOptions _options;
 
     // Keyed by cache key; the boxed value is the in-progress Task<T> for that key.
     private readonly ConcurrentDictionary<string, object> _inFlight = new();
 
-    public CachingTmdbClient(ITmdbClient inner, IMemoryCache cache, IOptions<TmdbCacheOptions> options)
+    public CachingTmdbClient(Func<ITmdbClient> innerFactory, IMemoryCache cache, IOptions<TmdbCacheOptions> options)
     {
-        _inner = inner;
+        _innerFactory = innerFactory;
         _cache = cache;
         _options = options.Value;
     }
@@ -39,63 +46,63 @@ public sealed class CachingTmdbClient : ITmdbClient
         GetOrFetchAsync(
             $"search:movie:{query}:{OptionsKey(options)}",
             _options.SearchTtl,
-            () => _inner.SearchMoviesAsync(query, options, ct));
+            () => _innerFactory().SearchMoviesAsync(query, options, ct));
 
     public Task<TmdbPagedResult<TmdbMovie>> DiscoverMoviesAsync(
         DiscoverParams discover, TmdbRequestOptions? options = null, CancellationToken ct = default) =>
         GetOrFetchAsync(
             $"discover:{DiscoverKey(discover)}:{OptionsKey(options)}",
             _options.SearchTtl,
-            () => _inner.DiscoverMoviesAsync(discover, options, ct));
+            () => _innerFactory().DiscoverMoviesAsync(discover, options, ct));
 
     public Task<TmdbMovie> GetMovieAsync(
         int id, TmdbRequestOptions? options = null, CancellationToken ct = default) =>
         GetOrFetchAsync(
             $"movie:{id}:{OptionsKey(options)}",
             _options.DetailTtl,
-            () => _inner.GetMovieAsync(id, options, ct));
+            () => _innerFactory().GetMovieAsync(id, options, ct));
 
     public Task<TmdbCredits> GetMovieCreditsAsync(
         int id, TmdbRequestOptions? options = null, CancellationToken ct = default) =>
         GetOrFetchAsync(
             $"movie:credits:{id}:{OptionsKey(options)}",
             _options.CreditsTtl,
-            () => _inner.GetMovieCreditsAsync(id, options, ct));
+            () => _innerFactory().GetMovieCreditsAsync(id, options, ct));
 
     public Task<IReadOnlyList<TmdbKeyword>> GetMovieKeywordsAsync(
         int id, CancellationToken ct = default) =>
         GetOrFetchAsync(
             $"movie:keywords:{id}",
             _options.CreditsTtl,
-            () => _inner.GetMovieKeywordsAsync(id, ct));
+            () => _innerFactory().GetMovieKeywordsAsync(id, ct));
 
     public Task<IReadOnlyList<TmdbGenre>> GetGenresAsync(
         TmdbRequestOptions? options = null, CancellationToken ct = default) =>
         GetOrFetchAsync(
             $"genres:{OptionsKey(options)}",
             _options.GenresTtl,
-            () => _inner.GetGenresAsync(options, ct));
+            () => _innerFactory().GetGenresAsync(options, ct));
 
     public Task<TmdbPagedResult<TmdbPerson>> SearchPeopleAsync(
         string query, TmdbRequestOptions? options = null, CancellationToken ct = default) =>
         GetOrFetchAsync(
             $"search:person:{query}:{OptionsKey(options)}",
             _options.SearchTtl,
-            () => _inner.SearchPeopleAsync(query, options, ct));
+            () => _innerFactory().SearchPeopleAsync(query, options, ct));
 
     public Task<TmdbPerson> GetPersonAsync(
         int id, TmdbRequestOptions? options = null, CancellationToken ct = default) =>
         GetOrFetchAsync(
             $"person:{id}:{OptionsKey(options)}",
             _options.DetailTtl,
-            () => _inner.GetPersonAsync(id, options, ct));
+            () => _innerFactory().GetPersonAsync(id, options, ct));
 
     public Task<TmdbCredits> GetPersonCombinedCreditsAsync(
         int id, TmdbRequestOptions? options = null, CancellationToken ct = default) =>
         GetOrFetchAsync(
             $"person:credits:{id}:{OptionsKey(options)}",
             _options.CreditsTtl,
-            () => _inner.GetPersonCombinedCreditsAsync(id, options, ct));
+            () => _innerFactory().GetPersonCombinedCreditsAsync(id, options, ct));
 
     private async Task<T> GetOrFetchAsync<T>(string key, TimeSpan ttl, Func<Task<T>> fetch)
     {
