@@ -165,17 +165,10 @@ else
 
     private async Task LoadMoviesAsync()
     {
-        var loaded = new List<MovieSummary>();
-        foreach (var entry in collection!.Movies)
-        {
-            var movie = await GetMovieAsync(entry.TmdbId);
-            if (movie is not null)
-            {
-                loaded.Add(movie);
-            }
-        }
-
-        movies = loaded;
+        // Fetch all members in parallel (avoids the sequential N+1 latency), then
+        // keep source order and drop any that 404'd.
+        var fetched = await Task.WhenAll(collection!.Movies.Select(entry => GetMovieAsync(entry.TmdbId)));
+        movies = fetched.Where(m => m is not null).Select(m => m!).ToList();
     }
 
     private async Task<MovieSummary?> GetMovieAsync(int tmdbId)

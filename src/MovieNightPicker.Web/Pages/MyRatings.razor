@@ -30,7 +30,7 @@ else
                 @foreach (var rating in ratings)
                 {
                     <tr>
-                        <td><a href="@($"/movies/{rating.TmdbId}")">Movie #@rating.TmdbId</a></td>
+                        <td><a href="@($"/movies/{rating.TmdbId}")">@TitleFor(rating.TmdbId)</a></td>
                         <td>
                             <RatingStars Value="rating.Value"
                                          ValueChanged="value => UpdateRatingAsync(rating.TmdbId, value)" />
@@ -61,7 +61,7 @@ else
             <div class="card mb-3">
                 <div class="card-body">
                     <h5 class="card-title">
-                        <a href="@($"/movies/{review.TmdbId}")">Movie #@review.TmdbId</a>
+                        <a href="@($"/movies/{review.TmdbId}")">@TitleFor(review.TmdbId)</a>
                     </h5>
                     <textarea class="form-control mb-2" rows="3" value="@DraftFor(review.TmdbId)"
                               @oninput="e => SetDraft(review.TmdbId, e.Value?.ToString())"></textarea>
@@ -81,14 +81,17 @@ else
 
 @code {
     private RatingReviewApiClient client = default!;
+    private MovieApiClient movies = default!;
     private IReadOnlyList<RatingResponse> ratings = Array.Empty<RatingResponse>();
     private IReadOnlyList<ReviewResponse> reviews = Array.Empty<ReviewResponse>();
     private readonly Dictionary<int, string> reviewDrafts = new();
+    private readonly Dictionary<int, string> movieTitles = new();
     private bool loading = true;
 
     protected override async Task OnInitializedAsync()
     {
         client = new RatingReviewApiClient(Http);
+        movies = new MovieApiClient(Http);
         await LoadAsync();
     }
 
@@ -103,8 +106,34 @@ else
             reviewDrafts[review.TmdbId] = review.Content;
         }
 
+        await LoadTitlesAsync();
         loading = false;
     }
+
+    // Resolve display titles for every rated/reviewed movie in parallel — /ratings
+    // and /reviews only carry the tmdbId, so we fetch each detail and cache id->title.
+    private async Task LoadTitlesAsync()
+    {
+        var ids = ratings.Select(r => r.TmdbId)
+            .Concat(reviews.Select(r => r.TmdbId))
+            .Distinct()
+            .ToList();
+
+        var lookups = await Task.WhenAll(ids.Select(async id => (id, movie: await movies.GetDetailAsync(id))));
+
+        movieTitles.Clear();
+        foreach (var (id, movie) in lookups)
+        {
+            if (movie is not null)
+            {
+                movieTitles[id] = movie.Title;
+            }
+        }
+    }
+
+    // Resolved title, falling back to "Movie #{id}" when the lookup failed.
+    private string TitleFor(int tmdbId) =>
+        movieTitles.TryGetValue(tmdbId, out var title) ? title : $"Movie #{tmdbId}";
 
     private async Task UpdateRatingAsync(int tmdbId, int value)
     {
