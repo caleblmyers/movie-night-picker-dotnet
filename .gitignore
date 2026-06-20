@@ -33,3 +33,6 @@ appsettings.Local.json
 # ---- TaskSwarm (from brain project-ai template) ----
 .ai/taskswarm/tasks.json
 .ai/taskswarm/issues.md
+# Per-worktree swarm identity doc — workers must never commit it (reviewer had to
+# strip it from every merge in Wave 5). Ignored so it can't land on main.
+.claude/swarm-role.md

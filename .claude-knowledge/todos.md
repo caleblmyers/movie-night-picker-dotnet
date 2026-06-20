@@ -1,6 +1,6 @@
 # Work Queue
 
-Prioritized work. Also the input for the swarm planner. **Current state: full-stack feature-complete (Waves 0–4, 2026-06-18).** Backend (auth, collections, ratings, reviews, suggest single + 10-round, shuffle, insights) + a Blazor WASM frontend are done; 173 tests green, app boots (API `/health` ok, Blazor host serves). Remaining items are reviewer follow-ups (below) and future directions (deployment / CI / polish).
+Prioritized work. Also the input for the swarm planner. **Current state: full-stack feature-complete + polished (Waves 0–5, 2026-06-19).** Backend + Blazor WASM frontend done and pushed to GitHub (public: caleblmyers/movie-night-picker-dotnet); 184 tests green, app boots (API `/health` ok + auth 401s, Blazor host serves). Wave 5 cleared the reviewer follow-ups (auth rate-limit + rehash, validation filter, shared TMDB mapper, caching captive-dependency, web error handling + UX). Remaining: a few small open follow-ups (below) + future directions (deployment, JWT refresh/revocation if ever needed).
 
 ## Priority Order
 
@@ -100,8 +100,8 @@ Phase 0 is committed — the swarm can now take over Phases 1+ (work sets below 
 
 ### Wave 4 follow-ups (from reviewer — Blazor web UI)
 - [x] Web API calls have no error handling (task-003 `Suggest.razor` / `SuggestApiClient`): `Http.GetFromJsonAsync` and the suggest calls throw on a non-success / network failure, surfacing as an unhandled Blazor exception rather than a friendly message. Consider a shared try/catch or an error-display helper across the web pages so transient API failures show a toast/banner instead of breaking the page. — ✅ RESOLVED for the suggest pages (Wave 5 task-001: reusable `ApiCall.RunAsync`/`ApiResult<T>` helper + dismissible `ApiErrorBoundary` banner, wired into `Suggest.razor` + `SuggestRounds.razor`).
-- [ ] `CollectionDetail.razor` (task-005) loads member movies one-by-one in a sequential `foreach` (N+1 `GET /movies/{id}`), and re-fetches the whole list after every remove. Fine for small collections; consider `Task.WhenAll` for parallel fetch, or a batch movie-detail endpoint, if collections grow large.
-- [ ] `MyRatings.razor` (task-006) lists rated/reviewed movies as "Movie #{tmdbId}" — no titles, because `/ratings` & `/reviews` only store tmdbId. Consider resolving titles (per-row `GET /movies/{id}` or a batch lookup) so the management view is human-readable.
+- [x] `CollectionDetail.razor` (task-005) loads member movies one-by-one in a sequential `foreach` (N+1 `GET /movies/{id}`). — ✅ RESOLVED (Wave 5 task-002: parallel `Task.WhenAll` fetch, order + skip-on-null preserved).
+- [x] `MyRatings.razor` (task-006) lists rated/reviewed movies as "Movie #{tmdbId}" — no titles. — ✅ RESOLVED (Wave 5 task-002: resolves titles via a parallel `GET /movies/{id}` lookup, falls back to "Movie #{id}").
 - [x] `SuggestRounds.razor` (task-004) requires a Pick to advance each round — there's no "skip this round" to move on without adding to the selection. The early "Finish & recommend now" covers bailing out, but a per-round skip (advance without picking) would be a natural UX addition. — ✅ RESOLVED (Wave 5 task-001: "Skip this round" button advances via `AdvanceAsync` without recording a pick; finishes on the last round).
 
 ### Wave 5 follow-ups (from reviewer)

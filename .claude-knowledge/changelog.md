@@ -2,6 +2,21 @@
 
 Wave-by-wave record of what shipped and what we learned. Newest first.
 
+## Wave 5 — 2026-06-19 (polish / hardening) — reviewer follow-ups cleared
+
+Cleanup wave (no new features) — cleared the backlog of reviewer follow-ups. 6 tasks, all merged; build clean (0 warnings), format clean, **184 tests** (up from 173); API smoke ok (`/health`, `/collections`→401). Repo is public on GitHub, so this release **pushed to `origin/main`**.
+
+**Shipped:**
+- **Web UX** (`MovieNightPicker.Web`): reusable `ApiCall.RunAsync`/`ApiResult<T>` + `ApiErrorBoundary` banner (wired into the suggest pages); per-round **Skip** in the 10-round flow; **real movie titles** in My Ratings (parallel lookup); **parallel** member fetch in Collection detail (was N+1). (task-001, task-002)
+- **API hardening** (`MovieNightPicker.Api`): fixed-window **rate-limit** on `/auth` (~10/min per IP, 429 over); **password rehash-on-login** (`PasswordHasher.NeedsRehash` + transparent re-hash/persist); reusable **`ValidationEndpointFilter<T>`** + `.WithRequestValidation<T>()` making the DataAnnotations real, manual rating/review checks removed. (task-003, task-004)
+- **Code quality**: single **`TmdbMovie.ToCore()`** mapper (in `Tmdb.Dtos`) used by both the adapter and `InsightsService`; **`CachingTmdbClient` captive-dependency fix** — singleton decorator now resolves the inner `TmdbClient` per fetch via a `Func<ITmdbClient>`, restoring `IHttpClientFactory` handler rotation. (task-005, task-006)
+
+**Process learnings (issues.md):**
+- Workers kept committing their per-worktree `.claude/swarm-role.md` (reviewer stripped it from every merge). **Fixed at source:** added `.claude/swarm-role.md` to `.gitignore` this release.
+- Moving validation out of a handler broke 2 tests that called the handler directly (filters don't run on bare handler calls); the test file wasn't in the task's `files` array. Lesson: when relocating validation, include the asserting test file in `files`.
+
+**Still open (todos.md → Wave 5 follow-ups):** the web error-handling helper is only wired into the suggest pages (adopt across Search/Shuffle/Detail/Collections/MyRatings); `AuthHardeningTests` duplicates the iteration-count literal; no end-to-end 429 rate-limit test. Plus the deferred JWT refresh/revocation. All non-blocking.
+
 ## Wave 4 — 2026-06-18 (Blazor WASM frontend) — full-stack feature-complete
 
 Added a **Blazor WebAssembly standalone** frontend (`MovieNightPicker.Web`) — the "full-stack .NET" stretch. Like Phase 0, a **foundation was scaffolded solo first** (the project, auth plumbing, shared display vocabulary), committed, then a 6-task page swarm built on top. All 6 merged first pass; build clean (0 warnings), format clean, 173 tests; smoke: API `/health` ok and the Blazor host page serves at :5032.
