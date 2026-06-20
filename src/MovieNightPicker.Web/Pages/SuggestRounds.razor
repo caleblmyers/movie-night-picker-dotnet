@@ -9,6 +9,8 @@
     <button class="btn btn-outline-secondary btn-sm" @onclick="StartOverAsync">Start over</button>
 </div>
 
+<ApiErrorBoundary @bind-Message="error" />
+
 @if (finished)
 {
     <h2 class="h4">We recommend</h2>
@@ -52,16 +54,26 @@ else
             }
         </div>
 
-        <button class="btn btn-outline-primary" @onclick="FinishAsync" disabled="@(selectedIds.Count == 0)">
-            Finish &amp; recommend now
-        </button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" @onclick="SkipAsync">
+                @(round >= TotalRounds ? "Skip & recommend" : "Skip this round")
+            </button>
+            <button class="btn btn-outline-primary" @onclick="FinishAsync" disabled="@(selectedIds.Count == 0)">
+                Finish &amp; recommend now
+            </button>
+        </div>
     }
     else
     {
         <p class="text-muted">No movies for this round.</p>
-        <button class="btn btn-outline-primary" @onclick="FinishAsync" disabled="@(selectedIds.Count == 0)">
-            Finish &amp; recommend now
-        </button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" @onclick="SkipAsync">
+                @(round >= TotalRounds ? "Skip & recommend" : "Skip this round")
+            </button>
+            <button class="btn btn-outline-primary" @onclick="FinishAsync" disabled="@(selectedIds.Count == 0)">
+                Finish &amp; recommend now
+            </button>
+        </div>
     }
 }
 
@@ -79,6 +91,8 @@ else
     private bool finished;
     private MovieSummary? recommendation;
 
+    private string? error;
+
     protected override void OnInitialized() => client = new SuggestApiClient(Http);
 
     protected override Task OnInitializedAsync() => LoadRoundAsync();
@@ -86,14 +100,31 @@ else
     private async Task LoadRoundAsync()
     {
         loading = true;
-        currentRound = await client.GetRoundAsync(round, selectedIds);
+        error = null;
+        var result = await ApiCall.RunAsync(() => client.GetRoundAsync(round, selectedIds));
+        if (result.Succeeded)
+        {
+            currentRound = result.Value;
+        }
+        else
+        {
+            error = result.Error;
+        }
         loading = false;
     }
 
     private async Task PickAsync(MovieSummary movie)
     {
         selectedIds.Add(movie.Id);
+        await AdvanceAsync();
+    }
 
+    /// <summary>Skip the current round without recording a pick.</summary>
+    private Task SkipAsync() => AdvanceAsync();
+
+    /// <summary>Move to the next round, or finish if this was the last one.</summary>
+    private async Task AdvanceAsync()
+    {
         if (round >= TotalRounds)
         {
             await FinishAsync();
@@ -107,8 +138,17 @@ else
     private async Task FinishAsync()
     {
         loading = true;
-        recommendation = await client.SuggestAsync(selectedIds);
-        finished = true;
+        error = null;
+        var result = await ApiCall.RunAsync(() => client.SuggestAsync(selectedIds));
+        if (result.Succeeded)
+        {
+            recommendation = result.Value;
+            finished = true;
+        }
+        else
+        {
+            error = result.Error;
+        }
         loading = false;
     }
 

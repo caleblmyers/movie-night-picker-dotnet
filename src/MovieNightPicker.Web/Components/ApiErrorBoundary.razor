@@ -1,0 +1,27 @@
+@* Dismissible error banner for a failed API call. Pages bind Message to the
+   Error from an ApiResult; when non-null, a Bootstrap alert is shown with a
+   close button that clears it. Reusable across any page that surfaces API errors. *@
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
+        <div class="flex-grow-1">@Message</div>
+        <button type="button" class="btn-close" aria-label="Dismiss" @onclick="DismissAsync"></button>
+    </div>
+}
+
+@code {
+    /// <summary>The error message to display; null/empty hides the banner.</summary>
+    [Parameter]
+    public string? Message { get; set; }
+
+    /// <summary>Raised (with null) when the user dismisses the banner.</summary>
+    [Parameter]
+    public EventCallback<string?> MessageChanged { get; set; }
+
+    private async Task DismissAsync()
+    {
+        Message = null;
+        await MessageChanged.InvokeAsync(null);
+    }
+}

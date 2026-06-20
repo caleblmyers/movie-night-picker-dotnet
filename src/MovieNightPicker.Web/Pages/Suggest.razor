@@ -10,6 +10,8 @@
     Try the <a href="/suggest/rounds">10-round flow</a>.
 </p>
 
+<ApiErrorBoundary @bind-Message="error" />
+
 <div class="row g-2 align-items-end mb-4 col-md-8">
     <div class="col">
         <label class="form-label">Find a movie you like</label>
@@ -94,6 +96,8 @@ else if (suggested && !suggesting)
     private bool searched;
     private IReadOnlyList<MovieSummary>? searchResults;
 
+    private string? error;
+
     private readonly List<MovieSummary> picks = [];
 
     private bool suggesting;
@@ -116,10 +120,18 @@ else if (suggested && !suggesting)
         }
 
         searching = true;
-        var page = await Http.GetFromJsonAsync<MoviePage>(
-            $"/movies/search?query={Uri.EscapeDataString(searchQuery)}");
-        searchResults = page?.Results;
-        searched = true;
+        error = null;
+        var result = await ApiCall.RunAsync(() => Http.GetFromJsonAsync<MoviePage>(
+            $"/movies/search?query={Uri.EscapeDataString(searchQuery)}"));
+        if (result.Succeeded)
+        {
+            searchResults = result.Value?.Results;
+            searched = true;
+        }
+        else
+        {
+            error = result.Error;
+        }
         searching = false;
     }
 
@@ -144,8 +156,18 @@ else if (suggested && !suggesting)
     private async Task SuggestAsync()
     {
         suggesting = true;
-        suggestion = await client.SuggestAsync(picks.Select(p => p.Id).ToList());
-        suggested = true;
+        error = null;
+        var result = await ApiCall.RunAsync(
+            () => client.SuggestAsync(picks.Select(p => p.Id).ToList()));
+        if (result.Succeeded)
+        {
+            suggestion = result.Value;
+            suggested = true;
+        }
+        else
+        {
+            error = result.Error;
+        }
         suggesting = false;
     }
 
