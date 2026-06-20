@@ -3,7 +3,6 @@ using MovieNightPicker.Core.Insights;
 using MovieNightPicker.Data;
 using MovieNightPicker.Tmdb;
 using MovieNightPicker.Tmdb.Dtos;
-using CoreModels = MovieNightPicker.Core.Models;
 
 namespace MovieNightPicker.Api.Services;
 
@@ -68,23 +67,11 @@ public sealed class InsightsService(MovieNightPickerDbContext db, ITmdbClient cl
         var keywords = await keywordsTask;
 
         return new InsightsMovie(
-            ToMovie(movie),
+            movie.ToCore(),
             keywords.Select(k => (k.Id, k.Name ?? string.Empty)).ToList(),
             credits.Cast.Select(c => (c.Id, c.Name ?? string.Empty, c.ProfilePath)).ToList(),
             credits.Crew
                 .Select(c => (c.Id, c.Name ?? string.Empty, c.ProfilePath, c.Job ?? string.Empty, c.Department ?? string.Empty))
                 .ToList());
     }
-
-    /// <summary>Maps a TMDB movie DTO onto the Core domain model (mirrors the TMDB adapter).</summary>
-    private static CoreModels.Movie ToMovie(TmdbMovie m) => new(
-        m.Id,
-        m.Title ?? string.Empty,
-        m.Overview,
-        m.PosterPath,
-        DateOnly.TryParse(m.ReleaseDate, out var date) ? date : null,
-        m.VoteAverage,
-        m.VoteCount,
-        m.Runtime,
-        m.Genres.Select(g => g.Id).ToList());
 }

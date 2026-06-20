@@ -18,7 +18,7 @@ public sealed class TmdbMovieDataSource(ITmdbClient client) : IMovieDataSource
     {
         var (discover, options) = ToTmdb(p);
         var page = await client.DiscoverMoviesAsync(discover, options, ct);
-        return page.Results.Select(ToMovie).ToList();
+        return page.Results.Select(m => m.ToCore()).ToList();
     }
 
     public async Task<CoreModels.Movie?> GetMovieAsync(int id, CancellationToken ct = default)
@@ -26,7 +26,7 @@ public sealed class TmdbMovieDataSource(ITmdbClient client) : IMovieDataSource
         try
         {
             var movie = await client.GetMovieAsync(id, ct: ct);
-            return ToMovie(movie);
+            return movie.ToCore();
         }
         catch (TmdbApiException ex) when (ex.StatusCode == 404)
         {
@@ -69,20 +69,4 @@ public sealed class TmdbMovieDataSource(ITmdbClient client) : IMovieDataSource
 
         return (discover, options);
     }
-
-    /// <summary>Maps a TMDB movie DTO onto the Core domain model.</summary>
-    private static CoreModels.Movie ToMovie(TmdbMovie m) => new(
-        m.Id,
-        m.Title ?? string.Empty,
-        m.Overview,
-        m.PosterPath,
-        ParseReleaseDate(m.ReleaseDate),
-        m.VoteAverage,
-        m.VoteCount,
-        m.Runtime,
-        m.Genres.Select(g => g.Id).ToList());
-
-    /// <summary>Parses a TMDB <c>YYYY-MM-DD</c> release-date string; null/blank/garbage -> null.</summary>
-    private static DateOnly? ParseReleaseDate(string? raw) =>
-        DateOnly.TryParse(raw, out var date) ? date : null;
 }
