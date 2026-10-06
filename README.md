@@ -1,50 +1,92 @@
-# Movie Night Picker — .NET API
+# Movie Night Picker — .NET
 
-A C#/.NET rewrite of the [Movie Night Picker](../movie-night-picker) backend, rebuilt as an **ASP.NET Core Web API**. This is a **learning project** — the vehicle for getting fluent in C#/.NET ahead of the JMS Digital Solutions Engineer role (Epicor customization + on-prem .NET).
+A C#/.NET learning project implementing movie discovery, recommendations, collections, ratings, and reviews. It now includes an ASP.NET Core API **and a Blazor WebAssembly frontend**, built around TMDB and PostgreSQL.
 
-> **Status: repo shell only.** No application code yet — no solution/projects. The AI-dev infrastructure (`.claude-knowledge/`, swarm) is in place; the .NET solution gets scaffolded next (Phase 0). See `.claude-knowledge/todos.md`.
+The original TypeScript application lives in [the archived `movie-night-picker` repository](../movie-night-picker/README.md). This is an independent rewrite for learning idiomatic C#, LINQ, ASP.NET Core, and EF Core.
 
-## Why this rewrite
+## Project checkpoint
 
-The original is a TypeScript Express/Apollo GraphQL API wrapping the TMDB REST API + PostgreSQL. Its shape maps almost 1:1 onto the target job, which makes it an ideal teacher:
+Documentation reviewed 2026-10-05 against local source and manifests; application checks were not rerun for this review. Archive decision: archived at `archive/movie-night-picker-dotnet/` (owner decision, 2026-10-05).
 
-| Original (TS) | This rewrite (C#/.NET) | Why it transfers to the job |
-|---|---|---|
-| Express / Apollo | **ASP.NET Core Web API** | On-prem internal .NET tools |
-| Wraps TMDB REST API | `HttpClient` + typed clients | Wrapping **Epicor REST / BAQ** endpoints |
-| 15+ filters, suggestion cascade | **LINQ** | Dashboard / BAQ-style data querying |
-| Prisma + PostgreSQL | **Entity Framework Core** | On-prem SQL data access |
-| JWT auth | ASP.NET Core JWT bearer auth | — |
+**Current state:** Implemented ASP.NET Core API and Blazor WebAssembly frontend, with EF Core migrations and xUnit tests. The work queue records completed Waves 0–5 and remaining follow-ups.
 
-Scope is the **API/backend** (not the React frontend) — that's where the transferable C# lives. Optional later stretch: a Blazor UI slice for full-stack .NET.
+**Stack:** .NET 10, ASP.NET Core, Blazor WebAssembly, EF Core/Npgsql, PostgreSQL, xUnit.
 
-## Target stack
+**Resume here:** Read `.claude-knowledge/todos.md` and `.claude-knowledge/app-overview.md`; continue the open follow-ups rather than rebuilding Phase 0.
 
-- **.NET 10** / C#
-- **ASP.NET Core** Web API
-- **Entity Framework Core** + Npgsql (PostgreSQL)
-- **xUnit** for tests
-- **TMDB** as the external data source (need a TMDB API key)
+**Agent guidance:** [AGENTS.md](AGENTS.md) contains the Codex/project instructions; [CLAUDE.md](CLAUDE.md) retains Claude-specific workflow context.
 
-## Getting started (once the solution is scaffolded)
+## Current implementation
+
+- Movie/person search and detail, filtered discovery, suggestion flow, and recommendation logic
+- Authentication and user-scoped collections, ratings, reviews, and insights
+- Typed TMDB client with caching and fixture-based tests
+- Blazor pages for discovery, suggestions, collections, and account flows
+- EF Core migrations, API integration tests, and domain tests
+
+The recorded work queue marks Waves 0–5 complete and retains small follow-ups and future deployment/auth work. Its historical test results have not been rerun for this documentation update.
+
+## Requirements and configuration
+
+- .NET 10 SDK (see `Directory.Build.props`)
+- PostgreSQL for application data
+- TMDB API key for live movie data
+
+Supply API configuration through environment variables or local server-only configuration:
+
+| Environment variable | Purpose |
+|---|---|
+| `ConnectionStrings__Default` | PostgreSQL connection string |
+| `Tmdb__ApiKey` | TMDB credential |
+| `Jwt__SigningKey` | JWT signing key; use a private value outside the development fallback |
+| `Cors__AllowedOrigins__0` | Optional browser origin override |
+
+The Blazor app reads `Api:BaseUrl` from `src/MovieNightPicker.Web/wwwroot/appsettings.json`; that file is public. Keep server secrets out of the web project.
+
+## Run
 
 ```bash
 dotnet restore
 dotnet build
-dotnet run --project src/MovieNightPicker.Api   # path TBD at scaffold time
 ```
 
-## AI-assisted development
+Apply existing migrations to the intended local development database when setting up a new instance (requires the EF CLI). Export `ConnectionStrings__Default` for this command: the design-time factory reads that environment variable directly rather than the API’s local configuration.
 
-This repo carries the brain's reusable AI infrastructure:
+```bash
+dotnet ef database update --project src/MovieNightPicker.Data --startup-project src/MovieNightPicker.Api
+```
 
-- **`.claude-knowledge/`** — persistent knowledge base (architecture, decisions, todos) consulted across Claude Code sessions.
-- **`.ai/taskswarm/` + `scripts/taskswarm/`** — multi-agent parallel-dev swarm (planner / workers / reviewer over git worktrees).
-- **`.claude/skills/`** — `/task-swarm`, `/task-worker`, `/task-reviewer`, `/task-release`.
+Start these in separate terminals with the server configuration available:
 
-The swarm is for **Phase 1+** (parallelizable work in an existing codebase). Phase 0 (scaffolding the solution) is a **solo** agent — nothing to parallelize yet.
+```bash
+dotnet run --project src/MovieNightPicker.Api --launch-profile http
+dotnet run --project src/MovieNightPicker.Web --launch-profile http
+```
 
-## Planning docs (in the brain repo)
+The checked-in HTTP launch profiles use API port **5196** and web port **5032**. The API exposes `/health`. Align the Blazor API URL and API CORS origins if you change ports.
 
-- `~/brain/knowledge/csharp/study-plan.md` — the overall C# learning plan this project anchors
-- `~/brain/projects/movie-night-picker/overview.md` — the original app's features + architecture
+## Validation
+
+```bash
+dotnet build
+dotnet test
+dotnet format --verify-no-changes
+```
+
+Tests should use local fixtures/mocked TMDB access, not paid or live upstream requests.
+
+## Repository map
+
+- `MovieNightPicker.slnx` — solution (XML format, not `.sln`)
+- `src/MovieNightPicker.Core/` — domain and recommendation logic
+- `src/MovieNightPicker.Tmdb/` — external movie data client
+- `src/MovieNightPicker.Data/` — EF Core entities and migrations
+- `src/MovieNightPicker.Api/` — endpoints, auth, and application services
+- `src/MovieNightPicker.Web/` — Blazor frontend
+- `tests/MovieNightPicker.Tests/` — xUnit suite
+
+## Returning to the project
+
+- [Work queue](.claude-knowledge/todos.md) — completed waves and remaining work
+- [Application overview](.claude-knowledge/app-overview.md) — architecture and important files
+- [C# for TypeScript developers](docs/csharp-for-typescript-devs.md) — learning notes

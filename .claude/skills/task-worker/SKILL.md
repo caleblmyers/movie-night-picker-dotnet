@@ -5,7 +5,7 @@ disable-model-invocation: false
 user-invocable: true
 ---
 
-Start working. Read your tasks from /home/caleb/projects/movie-night-picker-dotnet/.ai/taskswarm/tasks.json, find tasks assigned to you, and begin implementing them. Follow the workflow in your CLAUDE.md. After completing each task, validate before marking complete.
+Start working. Read your tasks from /home/caleb/projects/archive/movie-night-picker-dotnet/.ai/taskswarm/tasks.json, find tasks assigned to you, and begin implementing them. Follow the workflow in your CLAUDE.md. After completing each task, validate before marking complete.
 
 <!-- CUSTOMIZE: Replace with your project's validation commands, e.g.:
 dotnet build

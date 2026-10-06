@@ -4,11 +4,11 @@ C#/.NET rewrite of the Movie Night Picker backend as an ASP.NET Core Web API. Pr
 
 ## Status
 
-**Phase 0 complete — solution scaffolded, build/test/format green.** 5 projects under `src/` + `tests/`, wired into `MovieNightPicker.slnx`. Next: Phase 1+ via the swarm (see `.claude-knowledge/todos.md`). The build/test commands below are live (solution file is `.slnx`, not `.sln`).
+The API, Blazor WebAssembly frontend, EF Core migrations, and xUnit tests are implemented. `.claude-knowledge/todos.md` records Waves 0–5 complete plus remaining follow-ups. See `README.md` and `AGENTS.md` for current setup and commands; do not restart Phase 0.
 
-## Target stack
+## Stack
 
-- **.NET 10** / C#, **ASP.NET Core** Web API
+- **.NET 10** / C#, **ASP.NET Core** Web API and **Blazor WebAssembly** frontend
 - **Entity Framework Core** + Npgsql (PostgreSQL)
 - **xUnit** for tests
 - External data: **TMDB** REST API (typed `HttpClient`)
@@ -19,18 +19,20 @@ C#/.NET rewrite of the Movie Night Picker backend as an ASP.NET Core Web API. Pr
 dotnet restore                 # install dependencies
 dotnet build                   # compile (primary validation gate)
 dotnet format --verify-no-changes   # style/format check
-dotnet test                    # run tests (once a test project exists)
-dotnet run --project <api>     # run the API
-dotnet ef migrations add <Name>     # EF Core: new migration after model changes
-dotnet ef database update           # apply migrations
+dotnet test                    # run the existing xUnit suite
+dotnet run --project src/MovieNightPicker.Api --launch-profile http
+dotnet run --project src/MovieNightPicker.Web --launch-profile http
+dotnet ef migrations add <Name> --project src/MovieNightPicker.Data --startup-project src/MovieNightPicker.Api
+dotnet ef database update --project src/MovieNightPicker.Data --startup-project src/MovieNightPicker.Api
 ```
 
-## Intended structure (once scaffolded)
+## Current structure
 
 ```
-MovieNightPicker.sln
+MovieNightPicker.slnx
 src/
   MovieNightPicker.Api/        # ASP.NET Core Web API (controllers/endpoints, DI, config)
+  MovieNightPicker.Web/        # Blazor WebAssembly frontend
   MovieNightPicker.Core/       # domain models + business logic (suggestion cascade, filters)
   MovieNightPicker.Data/       # EF Core DbContext, entities, migrations
   MovieNightPicker.Tmdb/       # typed HttpClient wrapper over the TMDB REST API
@@ -38,7 +40,7 @@ tests/
   MovieNightPicker.Tests/      # xUnit
 ```
 
-(Layout is a starting proposal — revisit at scaffold time.)
+The solution contains five application/library projects and one test project.
 
 ## Conventions
 
